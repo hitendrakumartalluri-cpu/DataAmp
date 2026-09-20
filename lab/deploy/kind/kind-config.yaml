@@ -1,0 +1,30 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: amp-lab
+nodes:
+  - role: control-plane
+    extraPortMappings:
+      - containerPort: 30080
+        hostPort: 8080
+        protocol: TCP
+      - containerPort: 30900
+        hostPort: 9000
+        protocol: TCP
+      - containerPort: 30901
+        hostPort: 9001
+        protocol: TCP
+      - containerPort: 30910
+        hostPort: 9100
+        protocol: TCP
+      - containerPort: 30911
+        hostPort: 9101
+        protocol: TCP
+      - containerPort: 30983
+        hostPort: 8983
+        protocol: TCP
+      - containerPort: 30998
+        hostPort: 9998
+        protocol: TCP
+      - containerPort: 30882
+        hostPort: 8182
+        protocol: TCP

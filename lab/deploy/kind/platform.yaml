@@ -1,0 +1,502 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: amp-lab
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: amp-lab-secrets
+  namespace: amp-lab
+type: Opaque
+stringData:
+  postgres-password: amp_lab_change_me
+  primary-access-key: ampprimary
+  primary-secret-key: ampprimary-change-me
+  legacy-access-key: amplegacy
+  legacy-secret-key: amplegacy-change-me
+  hop-user: amp-hop
+  hop-password: amp-hop-change-me
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres
+  namespace: amp-lab
+spec:
+  selector: {app: postgres}
+  ports:
+    - {name: postgres, port: 5432, targetPort: 5432}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+  namespace: amp-lab
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: postgres}}
+  template:
+    metadata: {labels: {app: postgres}}
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:17.11-alpine
+          env:
+            - {name: POSTGRES_DB, value: amp}
+            - {name: POSTGRES_USER, value: amp}
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: amp-lab-secrets, key: postgres-password}}
+          ports: [{containerPort: 5432}]
+          readinessProbe:
+            exec: {command: ["sh", "-c", "pg_isready -U amp -d amp"]}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/postgresql/data}
+      volumes:
+        - name: data
+          hostPath: {path: /var/local/amp-lab/postgres, type: DirectoryOrCreate}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: amp-lab
+spec:
+  selector: {app: kafka}
+  ports:
+    - {name: broker, port: 9092, targetPort: 9092}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka
+  namespace: amp-lab
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: kafka}}
+  template:
+    metadata: {labels: {app: kafka}}
+    spec:
+      containers:
+        - name: kafka
+          image: apache/kafka:3.9.1
+          env:
+            - {name: KAFKA_NODE_ID, value: "1"}
+            - {name: KAFKA_PROCESS_ROLES, value: "broker,controller"}
+            - {name: KAFKA_LISTENERS, value: "INTERNAL://:9092,CONTROLLER://:9093"}
+            - {name: KAFKA_ADVERTISED_LISTENERS, value: "INTERNAL://kafka:9092"}
+            - {name: KAFKA_LISTENER_SECURITY_PROTOCOL_MAP, value: "CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT"}
+            - {name: KAFKA_CONTROLLER_LISTENER_NAMES, value: CONTROLLER}
+            - {name: KAFKA_INTER_BROKER_LISTENER_NAME, value: INTERNAL}
+            - {name: KAFKA_CONTROLLER_QUORUM_VOTERS, value: "1@kafka:9093"}
+            - {name: KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR, value: "1"}
+            - {name: KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR, value: "1"}
+            - {name: KAFKA_TRANSACTION_STATE_LOG_MIN_ISR, value: "1"}
+            - {name: KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS, value: "0"}
+            - {name: KAFKA_NUM_PARTITIONS, value: "12"}
+          ports: [{containerPort: 9092}, {containerPort: 9093}]
+          readinessProbe:
+            exec: {command: ["sh", "-c", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          volumeMounts: [{name: data, mountPath: /var/lib/kafka/data}]
+      volumes:
+        - name: data
+          hostPath: {path: /var/local/amp-lab/kafka, type: DirectoryOrCreate}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: kafka-init
+  namespace: amp-lab
+spec:
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: kafka-init
+          image: apache/kafka:3.9.1
+          command: ["bash", "-lc"]
+          args:
+            - >-
+              until /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --list >/dev/null 2>&1; do sleep 2; done;
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic amp.storage.changes --partitions 12 --replication-factor 1;
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic amp.storage.changes.dlq --partitions 3 --replication-factor 1;
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic amp.raw.minio.primary --partitions 3 --replication-factor 1;
+              /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic amp.raw.minio.legacy --partitions 3 --replication-factor 1
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-primary
+  namespace: amp-lab
+spec:
+  type: NodePort
+  selector: {app: minio-primary}
+  ports:
+    - {name: s3, port: 9000, targetPort: 9000, nodePort: 30900}
+    - {name: console, port: 9001, targetPort: 9001, nodePort: 30901}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio-primary
+  namespace: amp-lab
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: minio-primary}}
+  template:
+    metadata: {labels: {app: minio-primary}}
+    spec:
+      containers:
+        - name: minio
+          image: quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z
+          args: ["server", "/data", "--console-address", ":9001"]
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom: {secretKeyRef: {name: amp-lab-secrets, key: primary-access-key}}
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom: {secretKeyRef: {name: amp-lab-secrets, key: primary-secret-key}}
+            - {name: MINIO_NOTIFY_KAFKA_ENABLE_AMP, value: "on"}
+            - {name: MINIO_NOTIFY_KAFKA_BROKERS_AMP, value: "kafka:9092"}
+            - {name: MINIO_NOTIFY_KAFKA_TOPIC_AMP, value: amp.raw.minio.primary}
+            - {name: MINIO_NOTIFY_KAFKA_QUEUE_DIR_AMP, value: "/data/.events"}
+            - {name: MINIO_NOTIFY_KAFKA_QUEUE_LIMIT_AMP, value: "100000"}
+          ports: [{containerPort: 9000}, {containerPort: 9001}]
+          readinessProbe: {tcpSocket: {port: 9000}, initialDelaySeconds: 5, periodSeconds: 5}
+          volumeMounts: [{name: data, mountPath: /data}]
+      volumes:
+        - name: data
+          hostPath: {path: /var/local/amp-lab/minio-primary, type: DirectoryOrCreate}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: minio-legacy
+  namespace: amp-lab
+spec:
+  type: NodePort
+  selector: {app: minio-legacy}
+  ports:
+    - {name: s3, port: 9000, targetPort: 9000, nodePort: 30910}
+    - {name: console, port: 9001, targetPort: 9001, nodePort: 30911}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: minio-legacy
+  namespace: amp-lab
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: minio-legacy}}
+  template:
+    metadata: {labels: {app: minio-legacy}}
+    spec:
+      containers:
+        - name: minio
+          image: quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z
+          args: ["server", "/data", "--console-address", ":9001"]
+          env:
+            - name: MINIO_ROOT_USER
+              valueFrom: {secretKeyRef: {name: amp-lab-secrets, key: legacy-access-key}}
+            - name: MINIO_ROOT_PASSWORD
+              valueFrom: {secretKeyRef: {name: amp-lab-secrets, key: legacy-secret-key}}
+            - {name: MINIO_NOTIFY_KAFKA_ENABLE_AMP, value: "on"}
+            - {name: MINIO_NOTIFY_KAFKA_BROKERS_AMP, value: "kafka:9092"}
+            - {name: MINIO_NOTIFY_KAFKA_TOPIC_AMP, value: amp.raw.minio.legacy}
+            - {name: MINIO_NOTIFY_KAFKA_QUEUE_DIR_AMP, value: "/data/.events"}
+            - {name: MINIO_NOTIFY_KAFKA_QUEUE_LIMIT_AMP, value: "100000"}
+          ports: [{containerPort: 9000}, {containerPort: 9001}]
+          readinessProbe: {tcpSocket: {port: 9000}, initialDelaySeconds: 5, periodSeconds: 5}
+          volumeMounts: [{name: data, mountPath: /data}]
+      volumes:
+        - name: data
+          hostPath: {path: /var/local/amp-lab/minio-legacy, type: DirectoryOrCreate}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: solr
+  namespace: amp-lab
+spec:
+  type: NodePort
+  selector: {app: solr}
+  ports:
+    - {name: http, port: 8983, targetPort: 8983, nodePort: 30983}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: solr
+  namespace: amp-lab
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: solr}}
+  template:
+    metadata: {labels: {app: solr}}
+    spec:
+      containers:
+        - name: solr
+          image: solr:10.0.0
+          args: ["solr-precreate", "amp_objects"]
+          ports: [{containerPort: 8983}]
+          readinessProbe: {httpGet: {path: /solr/admin/info/system, port: 8983}, initialDelaySeconds: 15, periodSeconds: 10}
+          volumeMounts: [{name: data, mountPath: /var/solr}]
+      volumes:
+        - name: data
+          hostPath: {path: /var/local/amp-lab/solr, type: DirectoryOrCreate}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: tika
+  namespace: amp-lab
+spec:
+  type: NodePort
+  selector: {app: tika}
+  ports:
+    - {name: http, port: 9998, targetPort: 9998, nodePort: 30998}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tika
+  namespace: amp-lab
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: tika}}
+  template:
+    metadata: {labels: {app: tika}}
+    spec:
+      containers:
+        - name: tika
+          image: apache/tika:4.0.0-1-full
+          ports: [{containerPort: 9998}]
+          readinessProbe: {httpGet: {path: /version, port: 9998}, initialDelaySeconds: 15, periodSeconds: 10}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: hop
+  namespace: amp-lab
+spec:
+  type: NodePort
+  selector: {app: hop}
+  ports:
+    - {name: http, port: 8080, targetPort: 8080, nodePort: 30882}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hop
+  namespace: amp-lab
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: hop}}
+  template:
+    metadata: {labels: {app: hop}}
+    spec:
+      containers:
+        - name: hop
+          image: apache/hop:2.19.0
+          env:
+            - {name: HOP_SERVER_PORT, value: "8080"}
+            - name: HOP_SERVER_USER
+              valueFrom: {secretKeyRef: {name: amp-lab-secrets, key: hop-user}}
+            - name: HOP_SERVER_PASS
+              valueFrom: {secretKeyRef: {name: amp-lab-secrets, key: hop-password}}
+          ports: [{containerPort: 8080}]
+          readinessProbe: {tcpSocket: {port: 8080}, initialDelaySeconds: 15, periodSeconds: 10}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: amp
+  namespace: amp-lab
+spec:
+  type: NodePort
+  selector: {app: amp}
+  ports:
+    - {name: http, port: 8080, targetPort: 8080, nodePort: 30080}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amp
+  namespace: amp-lab
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: amp}}
+  template:
+    metadata: {labels: {app: amp}}
+    spec:
+      containers:
+        - name: amp
+          image: amp-enterprise:0.9.0-beta.5.0
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: AMP_DATABASE_URL
+              value: postgresql://amp:amp_lab_change_me@postgres:5432/amp
+            - {name: AMP_DEMO_MODE, value: "false"}
+            - {name: AMP_DEFAULT_TENANT, value: demo}
+            - {name: AMP_TIKA_URL, value: "http://tika:9998"}
+            - {name: AMP_SOLR_URL, value: "http://solr:8983/solr"}
+            - {name: AMP_SOLR_COLLECTION, value: amp_objects}
+            - {name: AMP_HOP_URL, value: "http://hop:8080"}
+            - {name: AMP_KAFKA_BOOTSTRAP, value: "kafka:9092"}
+            - {name: AMP_KAFKA_STORAGE_TOPIC, value: amp.storage.changes}
+            - {name: AMP_KAFKA_DLQ_TOPIC, value: amp.storage.changes.dlq}
+            - {name: AMP_LAB_PRIMARY_ENDPOINT, value: "http://minio-primary:9000"}
+            - {name: AMP_LAB_LEGACY_ENDPOINT, value: "http://minio-legacy:9000"}
+            - {name: AMP_LAB_PRIMARY_BUCKET, value: amp-primary}
+            - {name: AMP_LAB_LEGACY_BUCKET, value: legacy-hcp}
+            - name: AMP_LAB_PRIMARY_ACCESS_KEY
+              valueFrom: {secretKeyRef: {name: amp-lab-secrets, key: primary-access-key}}
+            - name: AMP_LAB_PRIMARY_SECRET_KEY
+              valueFrom: {secretKeyRef: {name: amp-lab-secrets, key: primary-secret-key}}
+            - name: AMP_LAB_LEGACY_ACCESS_KEY
+              valueFrom: {secretKeyRef: {name: amp-lab-secrets, key: legacy-access-key}}
+            - name: AMP_LAB_LEGACY_SECRET_KEY
+              valueFrom: {secretKeyRef: {name: amp-lab-secrets, key: legacy-secret-key}}
+          ports: [{containerPort: 8080}]
+          readinessProbe: {httpGet: {path: /readyz, port: 8080}, initialDelaySeconds: 5, periodSeconds: 5}
+          livenessProbe: {httpGet: {path: /healthz, port: 8080}, initialDelaySeconds: 10, periodSeconds: 10}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amp-events
+  namespace: amp-lab
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: amp-events}}
+  template:
+    metadata: {labels: {app: amp-events}}
+    spec:
+      containers:
+        - name: worker
+          image: amp-enterprise:0.9.0-beta.5.0
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "app.event_worker", "consume-normalized"]
+          env:
+            - {name: AMP_DATABASE_URL, value: "postgresql://amp:amp_lab_change_me@postgres:5432/amp"}
+            - {name: AMP_DEMO_MODE, value: "false"}
+            - {name: AMP_KAFKA_BOOTSTRAP, value: "kafka:9092"}
+            - {name: AMP_KAFKA_STORAGE_TOPIC, value: amp.storage.changes}
+            - {name: AMP_KAFKA_DLQ_TOPIC, value: amp.storage.changes.dlq}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amp-minio-primary-adapter
+  namespace: amp-lab
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: amp-minio-primary-adapter}}
+  template:
+    metadata: {labels: {app: amp-minio-primary-adapter}}
+    spec:
+      containers:
+        - name: worker
+          image: amp-enterprise:0.9.0-beta.5.0
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "app.event_worker", "consume-minio-raw"]
+          env:
+            - {name: AMP_DATABASE_URL, value: "postgresql://amp:amp_lab_change_me@postgres:5432/amp"}
+            - {name: AMP_DEMO_MODE, value: "false"}
+            - {name: AMP_KAFKA_BOOTSTRAP, value: "kafka:9092"}
+            - {name: AMP_KAFKA_STORAGE_TOPIC, value: amp.storage.changes}
+            - {name: AMP_KAFKA_MINIO_RAW_TOPIC, value: amp.raw.minio.primary}
+            - {name: AMP_KAFKA_MINIO_ADAPTER_GROUP, value: amp-minio-primary-adapter}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amp-minio-legacy-adapter
+  namespace: amp-lab
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: amp-minio-legacy-adapter}}
+  template:
+    metadata: {labels: {app: amp-minio-legacy-adapter}}
+    spec:
+      containers:
+        - name: worker
+          image: amp-enterprise:0.9.0-beta.5.0
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "app.event_worker", "consume-minio-raw"]
+          env:
+            - {name: AMP_DATABASE_URL, value: "postgresql://amp:amp_lab_change_me@postgres:5432/amp"}
+            - {name: AMP_DEMO_MODE, value: "false"}
+            - {name: AMP_KAFKA_BOOTSTRAP, value: "kafka:9092"}
+            - {name: AMP_KAFKA_STORAGE_TOPIC, value: amp.storage.changes}
+            - {name: AMP_KAFKA_MINIO_RAW_TOPIC, value: amp.raw.minio.legacy}
+            - {name: AMP_KAFKA_MINIO_ADAPTER_GROUP, value: amp-minio-legacy-adapter}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amp-scheduler
+  namespace: amp-lab
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: amp-scheduler}}
+  template:
+    metadata: {labels: {app: amp-scheduler}}
+    spec:
+      containers:
+        - name: worker
+          image: amp-enterprise:0.9.0-beta.5.0
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "app.scheduler_worker"]
+          env:
+            - {name: AMP_DATABASE_URL, value: "postgresql://amp:amp_lab_change_me@postgres:5432/amp"}
+            - {name: AMP_DEMO_MODE, value: "false"}
+            - {name: AMP_SCHEDULER_POLL_SECONDS, value: "10"}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amp-aws-adapter
+  namespace: amp-lab
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: amp-aws-adapter}}
+  template:
+    metadata: {labels: {app: amp-aws-adapter}}
+    spec:
+      containers:
+        - name: worker
+          image: amp-enterprise:0.9.0-beta.5.0
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "app.event_worker", "aws-sqs-adapter"]
+          env:
+            - {name: AMP_DATABASE_URL, value: "postgresql://amp:amp_lab_change_me@postgres:5432/amp"}
+            - {name: AMP_DEMO_MODE, value: "false"}
+            - {name: AMP_KAFKA_BOOTSTRAP, value: "kafka:9092"}
+            - {name: AMP_KAFKA_STORAGE_TOPIC, value: amp.storage.changes}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: amp-hcp-adapter
+  namespace: amp-lab
+spec:
+  replicas: 1
+  selector: {matchLabels: {app: amp-hcp-adapter}}
+  template:
+    metadata: {labels: {app: amp-hcp-adapter}}
+    spec:
+      containers:
+        - name: worker
+          image: amp-enterprise:0.9.0-beta.5.0
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-m", "app.event_worker", "hcp-mqe-adapter"]
+          env:
+            - {name: AMP_DATABASE_URL, value: "postgresql://amp:amp_lab_change_me@postgres:5432/amp"}
+            - {name: AMP_DEMO_MODE, value: "false"}
+            - {name: AMP_KAFKA_BOOTSTRAP, value: "kafka:9092"}
+            - {name: AMP_KAFKA_STORAGE_TOPIC, value: amp.storage.changes}

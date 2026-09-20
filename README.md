@@ -14,6 +14,7 @@ The current implementation baseline is **0.9.0-beta.5.0**. It is suitable for co
 - [Architecture decisions](docs/adr/README.md)
 - [Lab environment](lab/README.md)
 - [Contribution and governance](CONTRIBUTING.md)
+- [Browsable Wiki](https://github.com/hitendrakumartalluri-cpu/DataAmp/wiki) — generated from repository documentation
 
 ## Repository boundaries
 
@@ -27,7 +28,8 @@ The current implementation baseline is **0.9.0-beta.5.0**. It is suitable for co
 
 GitHub is the canonical source. Chat discussions are working material until captured here in a feature, ADR, status update, test, or code change.
 
+The Wiki is automatically generated from this repository. Direct Wiki edits are overwritten by the next documentation sync.
+
 ## Core architectural boundary
 
 The AMP Catalogue is for administration, evidence, migration, and reconciliation. It is not the end-user search index. Production indexing reads storage directly through Apache Hop and writes to Solr/AI systems using AMP's deterministic identity contract.
-

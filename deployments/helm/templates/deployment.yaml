@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-amp
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels: {app: amp-enterprise}
+  template:
+    metadata:
+      labels: {app: amp-enterprise}
+    spec:
+      containers:
+        - name: amp
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - {name: http, containerPort: 8080}
+          env:
+            - name: AMP_DATABASE_URL
+              valueFrom: {secretKeyRef: {name: "{{ .Values.config.databaseUrlSecret }}", key: url}}
+            - name: AMP_API_KEY
+              valueFrom: {secretKeyRef: {name: "{{ .Values.config.apiKeySecret }}", key: api-key}}
+            - {name: AMP_DEMO_MODE, value: "{{ .Values.config.demoMode }}"}
+            - {name: AMP_DATA_ROOT, value: "{{ .Values.config.dataRoot }}"}
+          readinessProbe:
+            httpGet: {path: "{{ .Values.readinessProbe.path }}", port: http}
+          livenessProbe:
+            httpGet: {path: "{{ .Values.livenessProbe.path }}", port: http}
+          resources:
+{{ toYaml .Values.resources | indent 12 }}

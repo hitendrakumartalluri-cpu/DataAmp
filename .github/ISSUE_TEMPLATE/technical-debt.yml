@@ -1,0 +1,18 @@
+name: Technical debt
+description: Record hardening or cleanup work
+title: "[DEBT] "
+labels: ["type:technical-debt", "status:proposed"]
+body:
+  - type: textarea
+    id: debt
+    attributes:
+      label: Debt and impact
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Exit criteria
+    validations:
+      required: true
+

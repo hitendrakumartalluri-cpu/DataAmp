@@ -1,0 +1,277 @@
+name: amp-enterprise-lab
+
+services:
+  amp:
+    build: ../services/control-plane
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      AMP_DATABASE_URL: postgresql://amp:${AMP_POSTGRES_PASSWORD:-amp_lab_change_me}@postgres:5432/amp
+      AMP_DEMO_MODE: "false"
+      AMP_DEFAULT_TENANT: demo
+      AMP_DATA_ROOT: /data
+      AMP_TIKA_URL: http://tika:9998
+      AMP_SOLR_URL: http://solr:8983/solr
+      AMP_SOLR_COLLECTION: amp_objects
+      AMP_HOP_URL: http://hop:8080
+      AMP_KAFKA_BOOTSTRAP: kafka:9092
+      AMP_KAFKA_STORAGE_TOPIC: amp.storage.changes
+      AMP_KAFKA_DLQ_TOPIC: amp.storage.changes.dlq
+      AMP_KAFKA_MINIO_RAW_TOPIC: amp.raw.minio
+      AMP_S3_ACCESS_KEY: ${AMP_S3_ACCESS_KEY:-amps3client}
+      AMP_S3_SECRET_KEY: ${AMP_S3_SECRET_KEY:-amps3client-change-me}
+      AMP_S3_TENANT: demo
+      AMP_LAB_PRIMARY_ENDPOINT: http://minio-primary:9000
+      AMP_LAB_LEGACY_ENDPOINT: http://minio-legacy:9000
+      AMP_LAB_PRIMARY_BUCKET: amp-primary
+      AMP_LAB_LEGACY_BUCKET: legacy-hcp
+      AMP_LAB_PRIMARY_ACCESS_KEY: ${AMP_PRIMARY_ACCESS_KEY:-ampprimary}
+      AMP_LAB_PRIMARY_SECRET_KEY: ${AMP_PRIMARY_SECRET_KEY:-ampprimary-change-me}
+      AMP_LAB_LEGACY_ACCESS_KEY: ${AMP_LEGACY_ACCESS_KEY:-amplegacy}
+      AMP_LAB_LEGACY_SECRET_KEY: ${AMP_LEGACY_SECRET_KEY:-amplegacy-change-me}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [amp-lab]
+
+  postgres:
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_DB: amp
+      POSTGRES_USER: amp
+      POSTGRES_PASSWORD: ${AMP_POSTGRES_PASSWORD:-amp_lab_change_me}
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U amp -d amp"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    restart: unless-stopped
+    networks: [amp-lab]
+
+  minio-primary:
+    image: quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: ${AMP_PRIMARY_ACCESS_KEY:-ampprimary}
+      MINIO_ROOT_PASSWORD: ${AMP_PRIMARY_SECRET_KEY:-ampprimary-change-me}
+      MINIO_NOTIFY_KAFKA_ENABLE_AMP: "on"
+      MINIO_NOTIFY_KAFKA_BROKERS_AMP: kafka:9092
+      MINIO_NOTIFY_KAFKA_TOPIC_AMP: amp.raw.minio.primary
+      MINIO_NOTIFY_KAFKA_QUEUE_DIR_AMP: /data/.events
+      MINIO_NOTIFY_KAFKA_QUEUE_LIMIT_AMP: "100000"
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio-primary-data:/data
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [amp-lab]
+
+  minio-legacy:
+    image: quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: ${AMP_LEGACY_ACCESS_KEY:-amplegacy}
+      MINIO_ROOT_PASSWORD: ${AMP_LEGACY_SECRET_KEY:-amplegacy-change-me}
+      MINIO_NOTIFY_KAFKA_ENABLE_AMP: "on"
+      MINIO_NOTIFY_KAFKA_BROKERS_AMP: kafka:9092
+      MINIO_NOTIFY_KAFKA_TOPIC_AMP: amp.raw.minio.legacy
+      MINIO_NOTIFY_KAFKA_QUEUE_DIR_AMP: /data/.events
+      MINIO_NOTIFY_KAFKA_QUEUE_LIMIT_AMP: "100000"
+    ports:
+      - "127.0.0.1:9100:9000"
+      - "127.0.0.1:9101:9001"
+    volumes:
+      - minio-legacy-data:/data
+    depends_on:
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [amp-lab]
+
+  kafka:
+    image: apache/kafka:3.9.1
+    environment:
+      KAFKA_NODE_ID: "1"
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: INTERNAL://:9092,CONTROLLER://:9093,EXTERNAL://:29092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+      KAFKA_NUM_PARTITIONS: "12"
+    ports:
+      - "127.0.0.1:29092:29092"
+    volumes:
+      - kafka-data:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    restart: unless-stopped
+    networks: [amp-lab]
+
+  kafka-init:
+    image: apache/kafka:3.9.1
+    depends_on:
+      kafka:
+        condition: service_healthy
+    command: >-
+      bash -lc "
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic amp.storage.changes --partitions 12 --replication-factor 1 &&
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic amp.storage.changes.dlq --partitions 3 --replication-factor 1 &&
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic amp.raw.minio.primary --partitions 3 --replication-factor 1 &&
+      /opt/kafka/bin/kafka-topics.sh --bootstrap-server kafka:9092 --create --if-not-exists --topic amp.raw.minio.legacy --partitions 3 --replication-factor 1
+      "
+    networks: [amp-lab]
+
+  amp-events:
+    build: ../services/control-plane
+    command: ["python", "-m", "app.event_worker", "consume-normalized"]
+    environment:
+      AMP_DATABASE_URL: postgresql://amp:${AMP_POSTGRES_PASSWORD:-amp_lab_change_me}@postgres:5432/amp
+      AMP_DEMO_MODE: "false"
+      AMP_KAFKA_BOOTSTRAP: kafka:9092
+      AMP_KAFKA_STORAGE_TOPIC: amp.storage.changes
+      AMP_KAFKA_DLQ_TOPIC: amp.storage.changes.dlq
+      AMP_KAFKA_CONSUMER_GROUP: amp-catalogue-events
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [amp-lab]
+
+  amp-minio-primary-adapter:
+    build: ../services/control-plane
+    command: ["python", "-m", "app.event_worker", "consume-minio-raw"]
+    environment:
+      AMP_DATABASE_URL: postgresql://amp:${AMP_POSTGRES_PASSWORD:-amp_lab_change_me}@postgres:5432/amp
+      AMP_DEMO_MODE: "false"
+      AMP_KAFKA_BOOTSTRAP: kafka:9092
+      AMP_KAFKA_STORAGE_TOPIC: amp.storage.changes
+      AMP_KAFKA_MINIO_RAW_TOPIC: amp.raw.minio.primary
+      AMP_KAFKA_MINIO_ADAPTER_GROUP: amp-minio-primary-adapter
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [amp-lab]
+
+  amp-minio-legacy-adapter:
+    build: ../services/control-plane
+    command: ["python", "-m", "app.event_worker", "consume-minio-raw"]
+    environment:
+      AMP_DATABASE_URL: postgresql://amp:${AMP_POSTGRES_PASSWORD:-amp_lab_change_me}@postgres:5432/amp
+      AMP_DEMO_MODE: "false"
+      AMP_KAFKA_BOOTSTRAP: kafka:9092
+      AMP_KAFKA_STORAGE_TOPIC: amp.storage.changes
+      AMP_KAFKA_MINIO_RAW_TOPIC: amp.raw.minio.legacy
+      AMP_KAFKA_MINIO_ADAPTER_GROUP: amp-minio-legacy-adapter
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [amp-lab]
+
+  amp-aws-adapter:
+    build: ../services/control-plane
+    command: ["python", "-m", "app.event_worker", "aws-sqs-adapter"]
+    environment:
+      AMP_DATABASE_URL: postgresql://amp:${AMP_POSTGRES_PASSWORD:-amp_lab_change_me}@postgres:5432/amp
+      AMP_DEMO_MODE: "false"
+      AMP_KAFKA_BOOTSTRAP: kafka:9092
+      AMP_KAFKA_STORAGE_TOPIC: amp.storage.changes
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [amp-lab]
+
+  amp-hcp-adapter:
+    build: ../services/control-plane
+    command: ["python", "-m", "app.event_worker", "hcp-mqe-adapter"]
+    environment:
+      AMP_DATABASE_URL: postgresql://amp:${AMP_POSTGRES_PASSWORD:-amp_lab_change_me}@postgres:5432/amp
+      AMP_DEMO_MODE: "false"
+      AMP_KAFKA_BOOTSTRAP: kafka:9092
+      AMP_KAFKA_STORAGE_TOPIC: amp.storage.changes
+      AMP_HCP_MQE_POLL_INTERVAL: "30"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [amp-lab]
+
+  amp-scheduler:
+    build: ../services/control-plane
+    command: ["python", "-m", "app.scheduler_worker"]
+    environment:
+      AMP_DATABASE_URL: postgresql://amp:${AMP_POSTGRES_PASSWORD:-amp_lab_change_me}@postgres:5432/amp
+      AMP_DEMO_MODE: "false"
+      AMP_SCHEDULER_POLL_SECONDS: "10"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks: [amp-lab]
+
+  solr:
+    image: solr:10.0.0
+    command: ["solr-precreate", "amp_objects"]
+    ports:
+      - "127.0.0.1:8983:8983"
+    volumes:
+      - solr-data:/var/solr
+    restart: unless-stopped
+    networks: [amp-lab]
+
+  tika:
+    image: apache/tika:4.0.0-1-full
+    ports:
+      - "127.0.0.1:9998:9998"
+    restart: unless-stopped
+    networks: [amp-lab]
+
+  hop:
+    image: apache/hop:2.19.0
+    environment:
+      HOP_SERVER_PORT: "8080"
+      HOP_SERVER_USER: ${AMP_HOP_USER:-amp-hop}
+      HOP_SERVER_PASS: ${AMP_HOP_PASSWORD:-amp-hop-change-me}
+    ports:
+      - "127.0.0.1:8182:8080"
+    restart: unless-stopped
+    networks: [amp-lab]
+
+networks:
+  amp-lab:
+    driver: bridge
+
+volumes:
+  pg-data:
+  minio-primary-data:
+  minio-legacy-data:
+  solr-data:
+  kafka-data:

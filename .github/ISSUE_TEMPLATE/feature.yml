@@ -1,0 +1,30 @@
+name: Feature
+description: Propose or deliver an AMP capability
+title: "[AMP-AREA-NNN] "
+labels: ["type:feature", "status:proposed"]
+body:
+  - type: input
+    id: feature_id
+    attributes:
+      label: Feature ID
+      placeholder: AMP-MIG-007
+    validations:
+      required: true
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Desired outcome
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      placeholder: "- [ ] ..."
+    validations:
+      required: true
+  - type: textarea
+    id: links
+    attributes:
+      label: ADRs, dependencies, tests, and documentation
+

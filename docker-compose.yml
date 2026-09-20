@@ -1,0 +1,63 @@
+services:
+  amp:
+    build: ./services/control-plane
+    ports: ["8080:8080"]
+    environment:
+      AMP_DATABASE_URL: postgresql://amp:amp_change_me@postgres:5432/amp
+      AMP_DEMO_MODE: "true"
+      AMP_DATA_ROOT: /data
+      AMP_TIKA_URL: ${AMP_TIKA_URL:-}
+    volumes:
+      - amp-data:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:17.11-alpine
+    environment:
+      POSTGRES_DB: amp
+      POSTGRES_USER: amp
+      POSTGRES_PASSWORD: amp_change_me
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL","pg_isready -U amp -d amp"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    restart: unless-stopped
+
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-05-24T17-08-30Z
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_USER: ampadmin
+      MINIO_ROOT_PASSWORD: ampadmin-change-me
+    ports: ["9000:9000","9001:9001"]
+    volumes: ["minio-data:/data"]
+    profiles: ["extended"]
+
+  solr:
+    image: solr:10.0.0
+    command: ["solr-precreate","amp_objects"]
+    ports: ["8983:8983"]
+    volumes: ["solr-data:/var/solr"]
+    profiles: ["extended"]
+
+  tika:
+    image: apache/tika:4.0.0-1-full
+    ports: ["9998:9998"]
+    profiles: ["extended"]
+
+  hop:
+    image: apache/hop:2.19.0
+    ports: ["8182:8080"]
+    profiles: ["extended"]
+
+volumes:
+  amp-data:
+  pg-data:
+  minio-data:
+  solr-data:

@@ -1,0 +1,54 @@
+name: Publish documentation to Wiki
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - README.md
+      - PROJECT_STATUS.md
+      - ROADMAP.md
+      - docs/**
+      - lab/README.md
+      - lab/docs/**
+      - scripts/build-wiki.sh
+      - .github/workflows/publish-wiki.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-wiki
+  cancel-in-progress: true
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out canonical repository
+        uses: actions/checkout@v4
+
+      - name: Build Wiki pages
+        run: ./scripts/build-wiki.sh "$RUNNER_TEMP/wiki-pages"
+
+      - name: Publish generated Wiki
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WIKI_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.wiki.git
+        run: |
+          set -euo pipefail
+          wiki_checkout="$RUNNER_TEMP/wiki-checkout"
+          git clone "$WIKI_URL" "$wiki_checkout"
+          find "$wiki_checkout" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a "$RUNNER_TEMP/wiki-pages/." "$wiki_checkout/"
+          cd "$wiki_checkout"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add --all
+          if git diff --cached --quiet; then
+            echo "Wiki is already current."
+            exit 0
+          fi
+          git commit -m "Sync documentation from ${GITHUB_SHA}"
+          git push origin HEAD:master
+

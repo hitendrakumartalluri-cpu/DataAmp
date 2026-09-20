@@ -1,0 +1,11 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+backend/amp.db
+*.db-wal
+*.db-shm
+.env
+data/primary/*
+data/legacy/*
+!data/primary/.gitkeep
+!data/legacy/.gitkeep

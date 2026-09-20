@@ -1,0 +1,22 @@
+name: Architecture decision
+description: Evaluate a material technical choice
+title: "[ADR] "
+labels: ["type:architecture", "status:proposed"]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context and decision required
+    validations:
+      required: true
+  - type: textarea
+    id: options
+    attributes:
+      label: Options and trade-offs
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence required
+
