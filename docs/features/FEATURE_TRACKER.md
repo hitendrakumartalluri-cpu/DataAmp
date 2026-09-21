@@ -91,3 +91,32 @@
 | AMP-OPS-006 | Prometheus, OpenTelemetry, dashboards, alerts, SLOs | Beta 6 | Deferred | Production telemetry acceptance required |
 | AMP-OPS-007 | HA, failover, backup/restore, upgrade, WAN and scale | GA candidate | Deferred | Formal non-functional test programme required |
 
+
+## Notion backlog import — 2026-09-21
+
+These issues preserve the supplied Notion specifications and are the build-entry points for the imported backlog. Concept entries require design completion before approval. The two empty Notion placeholders were intentionally excluded, and the two retention documents were consolidated into one authoritative issue.
+
+| ID | Capability | Target | Status | GitHub Issue |
+|---|---|---|---|---|
+| AMP-GOV-006 | Encrypted document detection | Future | Concept | [#1](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/1) |
+| AMP-IDX-008 | Schema evolution without full reindex | Future | Concept | [#2](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/2) |
+| AMP-GOV-007 | Duplicate document detection using hashes | Future | Concept | [#3](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/3) |
+| AMP-AI-004 | Cost prediction dashboard | Future | Concept | [#4](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/4) |
+| AMP-AI-006 | AI access guardrails | Future | Concept | [#5](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/5) |
+| AMP-AI-005 | Document classification and auto-tagging | Future | Concept | [#6](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/6) |
+| AMP-GOV-008 | Policy-based storage optimiser | Future | Concept | [#7](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/7) |
+| AMP-GW-015 | Azure Blob and Google Cloud Storage translation adapters | Future | Concept | [#8](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/8) |
+| AMP-IDX-007 | Index data validation and canonical conversion | Future | Concept | [#9](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/9) |
+| AMP-GOV-009 | Compliance evidence pack | Future | Concept | [#10](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/10) |
+| AMP-GW-016 | Unified namespace across multiple object stores | Future | Concept | [#11](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/11) |
+| AMP-REC-002 | Indexing reconciliation and completeness ledger | Beta 6 | Approved | [#12](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/12) |
+| AMP-GOV-002 | Asynchronous PII scanning over indexed fields | Future | Approved | [#13](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/13) |
+| AMP-PKG-004 | Portable annotation sidecars | Beta 5 / Beta 6 | Implemented / hardening | [#14](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/14) |
+| AMP-IDX-005 | Split metadata and full-text indexes with application routing | Future | Approved | [#15](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/15) |
+| AMP-GOV-003 | Governed asynchronous metadata export and document download | Future | Approved | [#16](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/16) |
+| AMP-IDX-006 | Dynamic Solr collection design and auto-scaling wizard | Future | Approved | [#17](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/17) |
+| AMP-GOV-001 | Authorization-map filtering for search, facets and export | Beta 6 / Future | Approved | [#18](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/18) |
+| AMP-AI-003 | Field-aware natural-language search assistant | Future | Approved | [#19](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/19) |
+| AMP-AI-002 | AI-powered usage analytics, billing and dashboard recommendations | Future | Approved | [#20](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/20) |
+| AMP-GOV-010 | Lifecycle-bound audit history for search and retrieval | Beta 6 / Future | Approved | [#21](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/21) |
+| AMP-GOV-004 | Rule-based retention, legal hold, evidence and reporting | GA candidate | Approved | [#22](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/22) |
