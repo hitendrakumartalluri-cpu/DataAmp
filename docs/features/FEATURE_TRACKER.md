@@ -3,11 +3,20 @@
 **Baseline:** 0.9.0-beta.5.0  
 **Status rule:** Implemented means code exists; Verified requires recorded passing evidence.
 
+## Achievement snapshot — 2026-09-21
+
+- **Gateway umbrella:** [AMP-GW-EPIC-001 — issue #23](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/23)
+- **Implemented Gateway/package capabilities:** 15 (`AMP-GW-001`–`AMP-GW-011`, `AMP-PKG-001`–`AMP-PKG-004`)
+- **Automated baseline:** 19 Python tests passing; see [baseline validation](../testing/BASELINE_VALIDATION.md)
+- **Verification boundary:** clean lab acceptance remains pending, so implemented capabilities are not yet promoted to **Verified**
+- **Beta 6 Gateway gaps:** multipart S3, CopyObject/presigned URLs/version APIs, enterprise identity/RBAC, failure injection, scale, WAN, HA and security certification
+
+
 ## Gateway and packages
 
 | ID | Capability | Release | Status | Acceptance/evidence |
 |---|---|---|---|---|
-| AMP-GW-001 | Protocol-neutral managed-object service | Beta 5 | Implemented | Unit tests; clean-lab rerun pending |
+| AMP-GW-001 | Protocol-neutral managed-object service | Beta 5 | Implemented | 19-test automated baseline passes; clean-lab rerun pending; [#23](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/23) |
 | AMP-GW-002 | HCP REST object PUT/GET/HEAD/DELETE | Beta 5 | Implemented | `lab-hcp-rest-ingest-test.sh` |
 | AMP-GW-003 | HCP custom-metadata CRUD | Beta 5 | Implemented | HCP ingest test validates sidecars |
 | AMP-GW-004 | S3 Put/Get/Head/Delete/ListObjectsV2 | Beta 5 | Implemented | `lab-s3-interop-test.sh` |
@@ -17,13 +26,14 @@
 | AMP-GW-008 | Per-route raw/normalized response policy | Beta 5 | Implemented | `lab-response-policy-test.sh` |
 | AMP-GW-009 | Safe backend-header exposure and bounded response capture | Beta 5 | Implemented | Response policy test |
 | AMP-GW-010 | Native VersionId inventory and explicit old-version GET | Beta 5 | Implemented | `lab-native-version-test.sh` |
-| AMP-GW-011 | Payload-version to annotation-snapshot mapping | Beta 5 | Implemented | Native version test |
+| AMP-GW-011 | Payload-version to annotation-snapshot mapping | Beta 5 | Implemented | Native-version acceptance harness; clean-lab evidence pending; [#23](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/23) |
 | AMP-GW-012 | Multipart S3 | Beta 6 | Deferred | Multipart compatibility suite required |
 | AMP-GW-013 | CopyObject and presigned URLs | Beta 6 | Deferred | SDK compatibility suite required |
 | AMP-GW-014 | OIDC/LDAP/AD and RBAC | Beta 6 | Deferred | Identity, role, route, and negative tests required |
 | AMP-PKG-001 | AMP_PACKAGE_V3 stable GUID package | Beta 5 | Implemented | Package placement and ingest tests |
 | AMP-PKG-002 | AMP-managed hash placement | Beta 5 | Implemented | `lab-package-placement-test.sh` |
-| AMP-PKG-003 | Client-path placement | Beta 5 | Implemented | Package placement test |
+| AMP-PKG-003 | Client-path placement | Beta 5 | Implemented | Package placement acceptance harness; clean-lab evidence pending |
+| AMP-PKG-004 | Portable annotation sidecars | Beta 5 | Implemented / hardening | HCP annotation CRUD and package sidecars implemented; [#14](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/14), [#23](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/23) |
 
 ## Catalogue, change capture, and scheduling
 
