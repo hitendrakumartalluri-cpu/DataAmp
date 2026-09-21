@@ -14,7 +14,7 @@ The current implementation baseline is **0.9.0-beta.5.0**. It is suitable for co
 - [Architecture decisions](docs/adr/README.md)
 - [Lab environment](lab/README.md)
 - [Contribution and governance](CONTRIBUTING.md)
-- [Browsable Wiki](https://github.com/hitendrakumartalluri-cpu/DataAmp/wiki) — generated from repository documentation
+- [Product and Architecture Wiki](https://github.com/hitendrakumartalluri-cpu/DataAmp/wiki) — current and complete-product capabilities, architecture and ADRs
 
 ## Repository boundaries
 
@@ -28,7 +28,7 @@ The current implementation baseline is **0.9.0-beta.5.0**. It is suitable for co
 
 GitHub is the canonical source. Chat discussions are working material until captured here in a feature, ADR, status update, test, or code change.
 
-The Wiki is automatically generated from this repository. Direct Wiki edits are overwritten by the next documentation sync.
+The Wiki is automatically generated from canonical architecture and feature definitions in this repository. Project status, lab instructions and test execution records remain repository-only. Direct Wiki edits are overwritten by the next documentation sync.
 
 ## Core architectural boundary
 
