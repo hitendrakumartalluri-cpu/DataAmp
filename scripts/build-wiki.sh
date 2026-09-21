@@ -23,9 +23,10 @@ Use it to understand:
 
 1. [Product Vision](Product-Vision)
 2. [Current vs Complete Product](Product-Capability-Map)
-3. [Architecture](Architecture)
-4. [Feature Tracker](Feature-Tracker)
-5. [Architecture Decisions](ADR-0001-catalogue-boundary)
+3. [Module Overview](Modules)
+4. [Architecture](Architecture)
+5. [Feature Tracker](Feature-Tracker)
+6. [Architecture Decisions](ADR-0001-catalogue-boundary)
 
 ## Documentation boundary
 
@@ -40,6 +41,17 @@ cp "$repo_root/docs/ARCHITECTURE.md" "$wiki_dir/Architecture.md"
 cp "$repo_root/docs/GLOSSARY.md" "$wiki_dir/Glossary.md"
 cp "$repo_root/docs/features/FEATURE_TRACKER.md" "$wiki_dir/Feature-Tracker.md"
 cp "$repo_root/docs/decision-records/DECISION_MATRIX.md" "$wiki_dir/Decision-Matrix.md"
+
+cp "$repo_root/docs/modules/README.md" "$wiki_dir/Modules.md"
+cp "$repo_root/docs/modules/GATEWAY.md" "$wiki_dir/Module-Gateway.md"
+cp "$repo_root/docs/modules/MANAGED_OBJECTS.md" "$wiki_dir/Module-Managed-Objects.md"
+cp "$repo_root/docs/modules/CATALOGUE.md" "$wiki_dir/Module-Catalogue.md"
+cp "$repo_root/docs/modules/CHANGE_CAPTURE.md" "$wiki_dir/Module-Change-Capture.md"
+cp "$repo_root/docs/modules/MIGRATION.md" "$wiki_dir/Module-Migration.md"
+cp "$repo_root/docs/modules/INDEXING_HOP.md" "$wiki_dir/Module-Indexing-Hop.md"
+cp "$repo_root/docs/modules/SEARCH_AI.md" "$wiki_dir/Module-Search-AI.md"
+cp "$repo_root/docs/modules/GOVERNANCE.md" "$wiki_dir/Module-Governance.md"
+cp "$repo_root/docs/modules/PLATFORM_OPERATIONS.md" "$wiki_dir/Module-Platform-Operations.md"
 
 cp "$repo_root/docs/reference/BACKEND_AUTHORITY.md" "$wiki_dir/Backend-Authority.md"
 cp "$repo_root/docs/reference/CATALOGUE_SHARDING.md" "$wiki_dir/Catalogue-Sharding.md"
@@ -61,6 +73,19 @@ cat > "$wiki_dir/_Sidebar.md" <<'EOF'
 - [Current vs complete product](Product-Capability-Map)
 - [Feature tracker](Feature-Tracker)
 - [Glossary](Glossary)
+
+## Modules
+
+- [Module overview](Modules)
+- [Gateway](Module-Gateway)
+- [Managed objects and annotations](Module-Managed-Objects)
+- [Catalogue](Module-Catalogue)
+- [Change capture](Module-Change-Capture)
+- [Migration and hydration](Module-Migration)
+- [Indexing and Apache Hop](Module-Indexing-Hop)
+- [Search, analytics and AI](Module-Search-AI)
+- [Governance and compliance](Module-Governance)
+- [Platform operations](Module-Platform-Operations)
 
 ## Architecture
 
