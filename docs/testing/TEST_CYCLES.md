@@ -148,15 +148,22 @@ The suite is fail-fast by default. Use `AMP_REGRESSION_CONTINUE=1` only when the
 
 ## Cycle 9 — Reconciliation
 
-**Runs:** storage, index, and AI reconciliation suites as they mature.
+**Runs now:** `lab-reconciliation-test.sh` for Storage↔Catalogue, followed by index and AI reconciliation suites as they mature.
 
-**Proves:**
-- Catalogue state agrees with authoritative storage;
-- source and target migration evidence agrees where required;
-- search/index representations are complete and not stale/orphaned;
-- AI artifacts refer to the expected source content/version.
+**Current storage cycle proves:**
+- clean bounded TARGETED verification returns no drift;
+- missing physical payload is detected;
+- payload size/native-version drift is detected;
+- managed annotation sidecar loss is detected;
+- package manifest loss/drift is detected;
+- TALLY detects logical inventory count mismatch;
+- FULL performs bidirectional storage/Catalogue integrity validation;
+- reconciliation records evidence and does not auto-repair.
 
-This cycle is the next functional acceptance area after the current Gateway/Catalogue baseline.
+**Next additions:**
+- search/index missing, stale, orphan and pipeline-version checks;
+- AI artifact missing/stale/model-version checks;
+- source-native HCP MQE and AWS S3 Inventory providers for large TALLY/FULL runs.
 
 ## Cycle 10 — Performance, soak, failure and resilience
 
@@ -193,6 +200,7 @@ The cumulative runner currently covers:
 - backend-native versioning;
 - Gateway response policy;
 - migration and hydration;
+- Storage↔Catalogue reconciliation;
 - final event/Kafka/DLQ health.
 
-Reconciliation and non-functional performance/resilience stages are added to the same runner as they are implemented.
+Index/AI reconciliation and non-functional performance/resilience stages are added to the same runner as they are implemented.
