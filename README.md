@@ -2,7 +2,7 @@
 
 DataAmp (AMP) is an enterprise object-data control plane for protocol compatibility, catalogue assurance, migration, reconciliation, search preparation, and AI readiness.
 
-The current implementation baseline is **0.9.0-beta.5.0**. It is suitable for controlled lab validation and is **not production-certified**.
+The current frozen Beta 5 implementation baseline is **0.9.0-beta.5.0.6**. It passed the clean-lab full cumulative functional gate on 2026-09-22 and is **not production-certified**.
 
 ## Start here
 
