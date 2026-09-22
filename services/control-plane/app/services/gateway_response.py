@@ -24,6 +24,44 @@ def filter_headers(headers: dict[str, Any] | None, policy: str) -> dict[str, str
     return out
 
 
+
+def sanitize_success_headers(headers: dict[str, Any] | None, *, method: str, has_body: bool,
+                             body_length: int | None = None) -> dict[str, str]:
+    """Keep backend response headers wire-safe for the client operation.
+
+    Storage adapters may perform a verification HEAD after a write. Representation
+    headers from that HEAD (especially Content-Length) must never leak into a
+    bodyless PUT/DELETE response or clients will wait for bytes that AMP does not send.
+
+    A transformed representation (currently identified by Content-Range) must also
+    not carry full-object checksum headers.
+    """
+    out = {str(k).lower(): str(v) for k, v in (headers or {}).items()}
+    m = str(method or "").upper()
+    if has_body:
+        if body_length is not None:
+            out["content-length"] = str(int(body_length))
+        if "content-range" in out:
+            for name in list(out):
+                if (name.startswith("x-amz-checksum-") or
+                        name in {"content-md5", "digest", "x-amp-checksum-sha256"}):
+                    out.pop(name, None)
+    elif m != "HEAD":
+        for name in ("content-length", "content-type", "content-range", "accept-ranges"):
+            out.pop(name, None)
+    return out
+
+
+def sanitize_error_headers(headers: dict[str, Any] | None) -> dict[str, str]:
+    """Drop backend representation framing when AMP generates/re-serializes an error body."""
+    out = {str(k).lower(): str(v) for k, v in (headers or {}).items()}
+    for name in list(out):
+        if (name in {"content-length", "content-type", "content-range", "accept-ranges",
+                     "content-encoding", "content-md5", "digest", "x-amp-checksum-sha256"}
+                or name.startswith("x-amz-checksum-")):
+            out.pop(name, None)
+    return out
+
 def amp_error_code(status: int) -> str:
     return f"HTTP_STATUS_{int(status)}"
 
