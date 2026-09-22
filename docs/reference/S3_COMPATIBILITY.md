@@ -1,4 +1,4 @@
-# AMP S3 Client Compatibility — 0.9.0-beta.5.0
+# AMP S3 Client Compatibility — 0.9.0-beta.5.0.6
 
 AMP exposes a path-style S3-compatible beta front door backed by the same canonical managed-object service used by HCP REST.
 
