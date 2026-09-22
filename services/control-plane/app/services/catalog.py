@@ -580,18 +580,17 @@ class CatalogService:
     def is_managed_physical_key(self, group_id: str, physical_key: str) -> bool:
         """Return True when a native storage key is an internal member of an AMP package.
 
-        The business catalogue tracks the logical package root only. Payload, annotation and
-        manifest keys are implementation details and must never appear as separate business objects.
+        Match only physical members AMP explicitly owns. Broad package-root prefix
+        matching can misclassify legitimate CLIENT_PATH customer keys and is not
+        portable across PostgreSQL/SQLite.
         """
         row = self.db.fetchone(
             """SELECT id FROM catalogue_objects
-               WHERE catalogue_group_id=? AND storage_layout IN ('AMP_PACKAGE_V1','AMP_PACKAGE_V2','AMP_PACKAGE_V3') AND (
-                 payload_key=? OR manifest_key=? OR
-                 (? LIKE COALESCE(package_root,'') || '/annotations/%') OR
-                 (? LIKE COALESCE(package_root,'') || '/.amp/%') OR
-                 (? LIKE COALESCE(package_root,'') || '/%')
-               ) LIMIT 1""",
-            (group_id, physical_key, physical_key, physical_key, physical_key, physical_key),
+               WHERE catalogue_group_id=?
+                 AND storage_layout IN ('AMP_PACKAGE_V1','AMP_PACKAGE_V2','AMP_PACKAGE_V3')
+                 AND (payload_key=? OR manifest_key=?)
+               LIMIT 1""",
+            (group_id, physical_key, physical_key),
         )
         if row:
             return True
