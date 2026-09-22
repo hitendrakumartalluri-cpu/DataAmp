@@ -569,3 +569,67 @@ def test_payload_versions_link_to_annotation_snapshots_without_amp_version_keys(
     assert cat.annotation_version_for_payload(obj["id"], "legal", "p2") == "a2"
     links = cat.list_version_annotation_links(obj["id"])
     assert {(x["payload_native_version_id"], x["annotation_native_version_id"]) for x in links} == {("p1","a1"),("p2","a2")}
+
+
+
+def test_bodyless_success_headers_do_not_leak_content_length():
+    from app.services.gateway_response import sanitize_success_headers
+    backend_headers = {
+        "content-length": "166",
+        "content-type": "application/json",
+        "etag": "abc",
+        "x-amz-version-id": "v1",
+    }
+    put_headers = sanitize_success_headers(backend_headers, method="PUT", has_body=False)
+    assert "content-length" not in put_headers
+    assert "content-type" not in put_headers
+    assert put_headers["etag"] == "abc"
+    assert put_headers["x-amz-version-id"] == "v1"
+    head_headers = sanitize_success_headers(backend_headers, method="HEAD", has_body=False)
+    assert head_headers["content-length"] == "166"
+
+
+def test_bodyful_success_headers_override_backend_content_length():
+    from app.services.gateway_response import sanitize_success_headers
+    backend_headers = {
+        "content-length": "61",
+        "content-type": "application/octet-stream",
+        "etag": "abc",
+        "x-amz-checksum-crc32": "A2v8Xg==",
+        "x-amz-checksum-sha256": "ZmFrZS1mdWxsLW9iamVjdC1zaGEyNTY=",
+        "content-md5": "ZmFrZQ==",
+    }
+    range_headers = sanitize_success_headers(
+        {**backend_headers, "content-range": "bytes 0-4/61"},
+        method="GET", has_body=True, body_length=5,
+    )
+    assert range_headers["content-length"] == "5"
+    assert range_headers["content-range"] == "bytes 0-4/61"
+    assert "x-amz-checksum-crc32" not in range_headers
+    assert "x-amz-checksum-sha256" not in range_headers
+    assert "content-md5" not in range_headers
+    full_headers = sanitize_success_headers(
+        backend_headers, method="GET", has_body=True, body_length=61,
+    )
+    assert full_headers["content-length"] == "61"
+    assert full_headers["x-amz-checksum-crc32"] == "A2v8Xg=="
+
+
+def test_error_headers_do_not_leak_backend_body_framing_or_checksums():
+    from app.services.gateway_response import sanitize_error_headers
+    headers = sanitize_error_headers({
+        "Content-Length": "355",
+        "Content-Type": "application/xml",
+        "Content-Encoding": "gzip",
+        "x-amz-checksum-crc32": "A2v8Xg==",
+        "Content-MD5": "ZmFrZQ==",
+        "x-amz-request-id": "backend-123",
+        "Retry-After": "2",
+    })
+    assert "content-length" not in headers
+    assert "content-type" not in headers
+    assert "content-encoding" not in headers
+    assert "x-amz-checksum-crc32" not in headers
+    assert "content-md5" not in headers
+    assert headers["x-amz-request-id"] == "backend-123"
+    assert headers["retry-after"] == "2"
