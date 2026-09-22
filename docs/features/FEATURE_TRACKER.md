@@ -9,6 +9,7 @@
 - **Implemented Gateway/package capabilities:** 15 (`AMP-GW-001`–`AMP-GW-011`, `AMP-PKG-001`–`AMP-PKG-004`)
 - **Automated baseline:** 19 Python tests passing; see [baseline validation](../testing/BASELINE_VALIDATION.md)
 - **Verification boundary:** capabilities move from **Implemented** to **Verified** only after their dedicated acceptance test and the cumulative regression gate pass; see [Testing Cycles](../testing/TEST_CYCLES.md)
+- **Full cumulative evidence:** `0.9.0-beta.5.0.6`, run `20260922T110649Z-48979`, 14/14 stages PASS; see [evidence](../testing/evidence/BETA5_FULL_REGRESSION_20260922.md). `Verified (lab)` does not mean production-certified.
 - **Beta 6 Gateway gaps:** multipart S3, CopyObject/presigned URLs/version APIs, enterprise identity/RBAC, failure injection, scale, WAN, HA and security certification
 
 
@@ -16,37 +17,37 @@
 
 | ID | Capability | Release | Status | Acceptance/evidence |
 |---|---|---|---|---|
-| AMP-GW-001 | Protocol-neutral managed-object service | Beta 5 | Implemented | 19-test automated baseline passes; clean-lab rerun pending; [#23](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/23) |
+| AMP-GW-001 | Protocol-neutral managed-object service | Beta 5 | Verified (lab) | 19-test automated baseline passes; clean-lab rerun pending; [#23](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/23) |
 | AMP-GW-002 | HCP REST object PUT/GET/HEAD/DELETE | Beta 5 | Implemented | `lab-hcp-rest-ingest-test.sh` |
 | AMP-GW-003 | HCP custom-metadata CRUD | Beta 5 | Implemented | HCP ingest test validates sidecars |
 | AMP-GW-004 | S3 Put/Get/Head/Delete/ListObjectsV2 | Beta 5 | Implemented | `lab-s3-interop-test.sh` |
-| AMP-GW-005 | SigV4 header authentication with lab credentials | Beta 5 | Implemented | S3 interop test; production identity deferred |
-| AMP-GW-006 | Range GET and user metadata/tags | Beta 5 | Implemented | S3 interop test |
-| AMP-GW-007 | HCP/S3 cross-protocol access | Beta 5 | Implemented | S3 interop test |
-| AMP-GW-008 | Per-route raw/normalized response policy | Beta 5 | Implemented | `lab-response-policy-test.sh` |
-| AMP-GW-009 | Safe backend-header exposure and bounded response capture | Beta 5 | Implemented | Response policy test |
-| AMP-GW-010 | Native VersionId inventory and explicit old-version GET | Beta 5 | Implemented | `lab-native-version-test.sh` |
-| AMP-GW-011 | Payload-version to annotation-snapshot mapping | Beta 5 | Implemented | Native-version acceptance harness; clean-lab evidence pending; [#23](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/23) |
+| AMP-GW-005 | SigV4 header authentication with lab credentials | Beta 5 | Verified (lab) | S3 interop test; production identity deferred |
+| AMP-GW-006 | Range GET and user metadata/tags | Beta 5 | Verified (lab) | S3 interop test |
+| AMP-GW-007 | HCP/S3 cross-protocol access | Beta 5 | Verified (lab) | S3 interop test |
+| AMP-GW-008 | Per-route raw/normalized response policy | Beta 5 | Verified (lab) | `lab-response-policy-test.sh` |
+| AMP-GW-009 | Safe backend-header exposure and bounded response capture | Beta 5 | Verified (lab) | Response policy test |
+| AMP-GW-010 | Native VersionId inventory and explicit old-version GET | Beta 5 | Verified (lab) | `lab-native-version-test.sh` |
+| AMP-GW-011 | Payload-version to annotation-snapshot mapping | Beta 5 | Verified (lab) | Native-version acceptance harness; clean-lab evidence pending; [#23](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/23) |
 | AMP-GW-012 | Multipart S3 | Beta 6 | Deferred | Multipart compatibility suite required |
 | AMP-GW-013 | CopyObject and presigned URLs | Beta 6 | Deferred | SDK compatibility suite required |
 | AMP-GW-014 | OIDC/LDAP/AD and RBAC | Beta 6 | Deferred | Identity, role, route, and negative tests required |
-| AMP-PKG-001 | AMP_PACKAGE_V3 stable GUID package | Beta 5 | Implemented | Package placement and ingest tests |
-| AMP-PKG-002 | AMP-managed hash placement | Beta 5 | Implemented | `lab-package-placement-test.sh` |
-| AMP-PKG-003 | Client-path placement | Beta 5 | Implemented | Package placement acceptance harness; clean-lab evidence pending |
+| AMP-PKG-001 | AMP_PACKAGE_V3 stable GUID package | Beta 5 | Verified (lab) | Package placement and ingest tests |
+| AMP-PKG-002 | AMP-managed hash placement | Beta 5 | Verified (lab) | `lab-package-placement-test.sh` |
+| AMP-PKG-003 | Client-path placement | Beta 5 | Verified (lab) | Package placement acceptance harness; clean-lab evidence pending |
 | AMP-PKG-004 | Portable annotation sidecars | Beta 5 | Implemented / hardening | HCP annotation CRUD and package sidecars implemented; [#14](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/14), [#23](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/23) |
 
 ## Catalogue, change capture, and scheduling
 
 | ID | Capability | Release | Status | Acceptance/evidence |
 |---|---|---|---|---|
-| AMP-CAT-001 | One Catalogue Group per storage system + container | Beta 5 | Implemented | Lifecycle and schema tests |
-| AMP-CAT-002 | Stable container-local recon IDs | Beta 5 | Implemented | Lifecycle test verifies stability |
-| AMP-CAT-003 | 1024 virtual shards mapped to physical ranges | Beta 5 | Implemented | Catalogue lifecycle test |
-| AMP-CAT-004 | Generations, MISSING and TOMBSTONED lifecycle | Beta 5 | Implemented | `lab-catalogue-lifecycle-test.sh` |
-| AMP-CAT-005 | Native payload/annotation version inventory | Beta 5 | Implemented | Native version test |
+| AMP-CAT-001 | One Catalogue Group per storage system + container | Beta 5 | Verified (lab) | Lifecycle and schema tests |
+| AMP-CAT-002 | Stable container-local recon IDs | Beta 5 | Verified (lab) | Lifecycle test verifies stability |
+| AMP-CAT-003 | 1024 virtual shards mapped to physical ranges | Beta 5 | Verified (lab) | Catalogue lifecycle test |
+| AMP-CAT-004 | Generations, MISSING and TOMBSTONED lifecycle | Beta 5 | Verified (lab) | `lab-catalogue-lifecycle-test.sh` |
+| AMP-CAT-005 | Native payload/annotation version inventory | Beta 5 | Verified (lab) | Native version test |
 | AMP-CAT-006 | Freeze/archive/decommission lifecycle | Beta 5 | Implemented | API/unit coverage; lab rerun pending |
-| AMP-EVT-001 | Kafka normalized change-event backbone | Beta 5 | Implemented | Event smoke test |
-| AMP-EVT-002 | MinIO notifications to raw and normalized topics | Beta 5 | Implemented | `lab-event-smoke-test.sh` |
+| AMP-EVT-001 | Kafka normalized change-event backbone | Beta 5 | Verified (lab) | Event smoke test |
+| AMP-EVT-002 | MinIO notifications to raw and normalized topics | Beta 5 | Verified (lab) | `lab-event-smoke-test.sh` |
 | AMP-EVT-003 | Idempotency, stale suppression, DLQ, replay | Beta 5 | Implemented | Unit/event tests; failure-injection expansion needed |
 | AMP-EVT-004 | AWS SQS/EventBridge change adapter | Beta 6 | In Progress | Scaffold only; real integration pending |
 | AMP-EVT-005 | HCP MQE change adapter | Beta 6 | In Progress | Scaffold only; real integration pending |
@@ -58,10 +59,10 @@
 |---|---|---|---|---|
 | AMP-MIG-001 | Generic LIST discovery baseline | Beta 5 | Implemented | Lifecycle test |
 | AMP-MIG-002 | Manifest-based package reconstruction | Beta 5 | Implemented | Package and lifecycle tests |
-| AMP-MIG-003 | Current logical object and annotation migration | Beta 5 | Implemented | `lab-migration-hydration-test.sh` |
-| AMP-MIG-004 | Independent source/target catalogues and lineage | Beta 5 | Implemented | Migration/hydration test |
-| AMP-MIG-005 | Dry-run migration planning | Beta 5 | Implemented | API/unit coverage |
-| AMP-MIG-006 | Primary-first read-through hydration | Beta 5 | Implemented | Migration/hydration test |
+| AMP-MIG-003 | Current logical object and annotation migration | Beta 5 | Verified (lab) | `lab-migration-hydration-test.sh` |
+| AMP-MIG-004 | Independent source/target catalogues and lineage | Beta 5 | Verified (lab) | Migration/hydration test |
+| AMP-MIG-005 | Dry-run migration planning | Beta 5 | Verified (lab) | API/unit coverage |
+| AMP-MIG-006 | Primary-first read-through hydration | Beta 5 | Verified (lab) | Migration/hydration test |
 | AMP-MIG-007 | Scheduled migration filters, priority, concurrency, throttle, retry, reporting | Beta 6 | Approved | Detailed implementation and acceptance tests pending |
 | AMP-MIG-008 | Historic-version migration and mapping | GA candidate | Deferred | Version-by-version evidence required |
 | AMP-MIG-009 | Native compliance-state translation/reconciliation | GA candidate | Deferred | Only backend-native enforcement permitted |
