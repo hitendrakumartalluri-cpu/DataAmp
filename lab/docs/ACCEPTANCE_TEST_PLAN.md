@@ -1,6 +1,32 @@
-# AMP 0.9.0-beta.5.0 — Clean Lab Acceptance Plan
+# AMP Beta 5.x — Clean Lab Acceptance Plan
 
-Run these tests **one at a time** from `~/projects/amp-enterprise-beta`. Do not continue after a failed step; inspect the first failure.
+Run these tests **one at a time** from `~/projects/amp-enterprise-beta` when isolating a failure. Do not continue after a failed step; inspect the first failure.
+
+## Cumulative regression entry point
+
+After every increment, run the cumulative suite rather than manually selecting only the changed feature:
+
+```bash
+./scripts/lab-cumulative-regression.sh
+```
+
+Milestone/release acceptance:
+
+```bash
+AMP_REGRESSION_RESET=1 \\
+AMP_REGRESSION_PROFILE=full \\
+./scripts/lab-cumulative-regression.sh
+```
+
+Profiles:
+
+- `quick` — frequent developer regression with small data volumes;
+- `full` — milestone/release functional acceptance;
+- `soak` — larger-volume regression before performance/resilience work.
+
+Each run stores stage logs plus `summary.txt` and `summary.json` under `.amp-test-results/<run-id>/`.
+
+See [Testing Cycles](../../docs/testing/TEST_CYCLES.md) for what every cycle proves. The numbered sections below remain the authoritative individual-stage procedures for fault isolation.
 
 ## 0. Unit/static validation
 
