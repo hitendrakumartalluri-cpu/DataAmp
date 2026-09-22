@@ -1,4 +1,4 @@
-.PHONY: dev test compose-up compose-full compose-down lab-catalogue-test lab-hcp-ingest-test lab-s3-interop-test lab-package-placement-test lab-native-version-test lab-response-policy-test lab-migration-hydration-test lab-beta5-readiness lab-regression lab-regression-full lab-acceptance
+.PHONY: dev test compose-up compose-full compose-down lab-catalogue-test lab-hcp-ingest-test lab-s3-interop-test lab-package-placement-test lab-native-version-test lab-response-policy-test lab-migration-hydration-test lab-reconciliation-test lab-beta5-readiness lab-regression lab-regression-full lab-acceptance
 
 dev:
 	cd services/control-plane && AMP_DEMO_MODE=true uvicorn app.main:app --reload --host 0.0.0.0 --port 8080
@@ -35,6 +35,9 @@ lab-response-policy-test:
 
 lab-migration-hydration-test:
 	./lab/scripts/lab-migration-hydration-test.sh
+
+lab-reconciliation-test:
+	./lab/scripts/lab-reconciliation-test.sh
 
 lab-beta5-readiness:
 	./lab/scripts/lab-beta5-readiness.sh
