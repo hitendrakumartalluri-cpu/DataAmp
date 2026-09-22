@@ -2,12 +2,12 @@
 
 Roadmap ordering describes intent, not a delivery commitment. GitHub Issues hold live status.
 
-## Now — Beta 5 validation
+## Completed baseline — Beta 5 functional freeze
 
-- Clean unit and lab acceptance run.
-- Confirm gateway response modes, native version behavior, package placement, migration, hydration, and catalogue lifecycle.
-- Capture failures and evidence against stable feature IDs.
-- Harden repository automation and secret hygiene.
+- Frozen functional baseline: `0.9.0-beta.5.0.6`.
+- Clean-lab full cumulative regression passed on 2026-09-22.
+- Gateway response modes, native versions, package placement, HCP/S3 interoperability, migration, hydration, change capture, and Catalogue lifecycle are accepted in the lab topology.
+- Reconciliation depth and non-functional certification remain separate gates.
 
 ## Next — Beta 6 hardening
 
