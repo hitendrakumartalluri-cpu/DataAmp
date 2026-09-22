@@ -1,6 +1,6 @@
 # AMP Feature Tracker
 
-**Baseline:** 0.9.0-beta.5.0  
+**Baseline:** 0.9.0-beta.5.0.6  
 **Status rule:** Implemented means code exists; Verified requires recorded passing evidence.
 
 ## Achievement snapshot — 2026-09-21
