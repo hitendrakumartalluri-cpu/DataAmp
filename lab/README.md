@@ -21,5 +21,18 @@ cd lab
 ./scripts/lab-up.sh
 ```
 
-Run acceptance tests one at a time and stop at the first failure. Lab credentials, local ports, simulators, and topology must never be treated as production defaults.
+For cumulative regression after every increment:
+
+```bash
+./scripts/lab-cumulative-regression.sh
+```
+
+For the clean-lab release gate:
+
+```bash
+AMP_REGRESSION_RESET=1 AMP_REGRESSION_PROFILE=full \
+./scripts/lab-cumulative-regression.sh
+```
+
+Use individual acceptance tests for fault isolation. Lab credentials, local ports, simulators, and topology must never be treated as production defaults.
 
