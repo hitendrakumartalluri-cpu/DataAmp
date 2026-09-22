@@ -4,8 +4,8 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"; cd "$ROOT"
 ENV_FILE="${ENV_FILE:-.env}"
 BASE="${AMP_URL:-http://localhost:8080}"
 
-GROUPS="$(curl -fsS "$BASE/api/v1/catalogue-groups?tenant_id=demo")"
-GID="$(python3 -c 'import json,sys; x=json.load(sys.stdin); print(next(g["id"] for g in x if g.get("container_name")=="legacy-hcp"))' <<<"$GROUPS")"
+CATALOGUE_GROUPS_JSON="$(curl -fsS "$BASE/api/v1/catalogue-groups?tenant_id=demo")"
+GID="$(python3 -c 'import json,sys; x=json.load(sys.stdin); print(next(g["id"] for g in x if g.get("container_name")=="legacy-hcp"))' <<<"$CATALOGUE_GROUPS_JSON")"
 KEY="events/outside-amp-smoke.txt"
 
 echo "==> Writing directly to legacy MinIO (bypassing AMP)"
