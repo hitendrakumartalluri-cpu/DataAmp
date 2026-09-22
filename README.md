@@ -7,6 +7,7 @@ The current frozen Beta 5 implementation baseline is **0.9.0-beta.5.0.6**. It pa
 ## Start here
 
 - [Current status](PROJECT_STATUS.md)
+- [Frozen Beta 5.0.6 baseline](docs/releases/BETA_5_0_6_FREEZE.md)
 - [Roadmap](ROADMAP.md)
 - [Product vision](docs/PRODUCT_VISION.md)
 - [Architecture](docs/ARCHITECTURE.md)
