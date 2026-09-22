@@ -207,10 +207,14 @@ class ManagedObjectService:
             wrote_provisional = True
         try:
             stat = backend.put(payload_key, data, content_type)
+            write_backend = stat.backend
             try:
                 observed = backend.head(payload_key, stat.version_id or "")
                 if observed:
                     observed.checksum_sha256 = observed.checksum_sha256 or stat.checksum_sha256
+                    # Verify object state with HEAD but preserve the authoritative PUT
+                    # response metadata for the client-facing Gateway response.
+                    observed.backend = write_backend
                     stat = observed
             except Exception:
                 pass
@@ -286,10 +290,14 @@ class ManagedObjectService:
             wrote_provisional = True
         try:
             stat = backend.put(payload_key, data, content_type)
+            write_backend = stat.backend
             try:
                 observed = backend.head(payload_key, stat.version_id or "")
                 if observed:
                     observed.checksum_sha256 = observed.checksum_sha256 or stat.checksum_sha256
+                    # Verify object state with HEAD but preserve the authoritative PUT
+                    # response metadata for the client-facing Gateway response.
+                    observed.backend = write_backend
                     stat = observed
             except Exception:
                 pass
