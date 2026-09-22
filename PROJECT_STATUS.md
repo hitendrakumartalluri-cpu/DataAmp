@@ -1,12 +1,13 @@
 # Project Status
 
 **As of:** 2026-09-22  
-**Baseline:** 0.9.0-beta.5.0.6  
+**Development baseline:** 0.9.0-beta.6.0-dev.1  
+**Frozen reference:** 0.9.0-beta.5.0.6  
 **Lifecycle:** Enterprise beta; lab validation required; not production-certified
 
 ## Current objective
 
-Stabilize Beta 5 in a clean lab, close protocol and operational hardening gaps, and establish evidence for a production-oriented Beta 6.
+Keep the accepted Beta 5 reference frozen while building Beta 6 reconciliation, then performance/resilience and production adapters.
 
 ## Implemented in the baseline
 
@@ -32,8 +33,9 @@ Stabilize Beta 5 in a clean lab, close protocol and operational hardening gaps, 
 
 ## Immediate next actions
 
-1. Continue to run the cumulative regression gate after every increment; use individual stages only for fault isolation.
-2. Add reconciliation as the next cumulative functional stage, then begin controlled performance/resilience testing.
+1. Validate the new Storage↔Catalogue reconciliation stage, then promote `AMP-REC-001` only after cumulative evidence passes.
+2. Add Index/Solr reconciliation, then AI artifact reconciliation.
+3. Continue to run the cumulative regression gate after every increment; use individual stages only for fault isolation.
 3. Implement real HCP adapter/MQE integration and production HOP-to-Solr pipelines.
 4. Add OIDC/RBAC, secrets handling, metrics, tracing, and SLOs before production claims.
 
