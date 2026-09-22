@@ -633,3 +633,40 @@ def test_error_headers_do_not_leak_backend_body_framing_or_checksums():
     assert "content-md5" not in headers
     assert headers["x-amz-request-id"] == "backend-123"
     assert headers["retry-after"] == "2"
+
+
+
+def test_storage_reconciliation_targeted_tally_and_full_detect_drift():
+    db, cat, ops, proc = stack("reconciliation-storage")
+    root = Path(_tmp.name) / "reconciliation-storage"; root.mkdir(exist_ok=True)
+    (root / "a.txt").write_text("alpha")
+    (root / "b.txt").write_text("bravo")
+    _, g = local_group(cat, "trecon", "recon-source", root, physical_shards=2)
+    ops.discover("trecon", g["id"])
+
+    clean = ops.reconcile("trecon", g["id"], "STORAGE", storage_mode="TARGETED")
+    assert clean["findings"] == 0
+    assert clean["checked"]["storage"] == 2
+
+    # Drift below AMP: one object disappears, one changes, and one uncatalogued
+    # object appears. Reconciliation must detect, never auto-repair.
+    (root / "a.txt").unlink()
+    (root / "b.txt").write_text("bravo-drifted-and-longer")
+    (root / "extra.txt").write_text("not catalogued")
+
+    targeted = ops.reconcile("trecon", g["id"], "STORAGE", storage_mode="TARGETED")
+    assert targeted["finding_counts"]["MISSING_FROM_STORAGE"] == 1
+    assert targeted["finding_counts"]["SIZE_MISMATCH"] == 1
+
+    tally = ops.reconcile("trecon", g["id"], "STORAGE", storage_mode="TALLY")
+    assert tally["finding_counts"]["COUNT_MISMATCH"] == 1
+    assert tally["inventory"]["logical_objects"] == 2
+
+    full = ops.reconcile("trecon", g["id"], "STORAGE", storage_mode="FULL")
+    assert full["finding_counts"]["MISSING_FROM_STORAGE"] == 1
+    assert full["finding_counts"]["SIZE_MISMATCH"] == 1
+    assert full["finding_counts"]["EXTRA_IN_STORAGE"] == 1
+
+    # Findings are evidence; the Catalogue is unchanged by reconciliation.
+    rows = cat.list_catalogue_objects(tenant="trecon", group_id=g["id"], limit=10)
+    assert sorted(r["object_key"] for r in rows) == ["a.txt", "b.txt"]
