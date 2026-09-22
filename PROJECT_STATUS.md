@@ -25,8 +25,9 @@ Stabilize Beta 5 in a clean lab, close protocol and operational hardening gaps, 
 - Unit suite passes from the governed repository layout: **19 passed** on 2026-09-19.
 - The complete clean-lab acceptance sequence is documented under `lab/docs/ACCEPTANCE_TEST_PLAN.md`.
 - Cumulative regression is the verification gate: `scripts/lab-cumulative-regression.sh` re-runs all previously proven functional stages and retains per-stage evidence under `.amp-test-results/`.
-- **Full cumulative regression PASS** on 2026-09-22 for AMP `0.9.0-beta.5.0.6`, run `20260922T110649Z-48979`; all 14 stages passed. Evidence: `docs/testing/evidence/BETA5_FULL_REGRESSION_20260922.md`.
-- The tested Gateway/Catalogue/Migration functional baseline is now **Verified in the lab topology**. This is not production certification.
+- **Full cumulative regression PASS** on 2026-09-22 for AMP `0.9.0-beta.5.0.6`, run `20260922T110649Z-48979`; all 14 stages passed.
+- **Clean-lab full cumulative regression PASS** on 2026-09-22, run `20260922T113642Z-52430`; reset + all 15 stages passed. Evidence: `docs/testing/evidence/BETA5_CLEAN_LAB_FULL_REGRESSION_20260922.md`.
+- The tested Gateway/Catalogue/Change-Capture/Managed-Package/Native-Version/Migration-Hydration functional baseline is now **Accepted for Beta 5 in the lab topology**. This is not production certification.
 - No WAN, scale, HA, failover, security federation, or production HOP/Solr certification exists yet.
 
 ## Immediate next actions
