@@ -9,6 +9,7 @@ This section explains AMP by product module. Each page distinguishes the current
 | [Catalogue](CATALOGUE.md) | Administrative inventory, sharding, generations and lifecycle |
 | [Change capture](CHANGE_CAPTURE.md) | Storage events, normalization, idempotency and replay |
 | [Migration](MIGRATION.md) | Batch migration, read-through hydration and lineage |
+| [Reconciliation](RECONCILIATION.md) | Storage, index and AI assurance, drift detection and evidence |
 | [Indexing and Hop](INDEXING_HOP.md) | Storage-direct extraction, transformation and index delivery |
 | [Search and AI](SEARCH_AI.md) | Solr retrieval, federation, analytics, datasets and AI assistance |
 | [Governance](GOVERNANCE.md) | Authorization, audit, PII, retention, hold and evidence |
