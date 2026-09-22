@@ -18,7 +18,7 @@ from .services.events import EventService
 from .services.scheduler import ScheduleService
 from .services.hcp_gateway import HCPGatewayService
 from .services.s3_gateway import S3GatewayService, S3AuthError
-from .services.gateway_response import filter_headers, normalized_error, normalized_s3_error_xml, raw_error_body
+from .services.gateway_response import filter_headers, sanitize_success_headers, sanitize_error_headers, normalized_error, normalized_s3_error_xml, raw_error_body
 
 app = FastAPI(title="AMP Enterprise Beta API", version=settings.version, docs_url="/docs", redoc_url="/redoc")
 db = Database(settings.database_url)
@@ -486,7 +486,7 @@ def _backend_error_response(request: Request, tenant: str, namespace: str, proto
     policy = _gateway_policy(tenant, namespace); rid=str(getattr(request.state,"request_id",""))
     _capture_backend(request, tenant, namespace, protocol, operation, resource, err=exc)
     mode=str(policy.get("response_mode") or "AMP_NORMALIZED").upper()
-    headers=filter_headers(exc.headers, str(policy.get("backend_header_policy") or "SELECTED"))
+    headers=sanitize_error_headers(filter_headers(exc.headers, str(policy.get("backend_header_policy") or "SELECTED")))
     if bool(policy.get("add_amp_request_id", True)): headers["x-amp-request-id"]=rid
     if mode=="RAW_BACKEND":
         body,media=raw_error_body(exc, protocol, resource)
@@ -529,6 +529,10 @@ async def hcp_rest(tenant: str, namespace: str, object_path: str, request: Reque
             if mode == "AMP_NORMALIZED_WITH_BACKEND":
                 headers["x-amp-backend-status"] = str(b.get("status") or "")
                 if b.get("request_id"): headers["x-amp-backend-request-id"] = str(b.get("request_id"))
+        headers = sanitize_success_headers(
+            headers, method=request.method, has_body=content is not None,
+            body_length=len(content) if content is not None else None,
+        )
         if bool(policy.get("add_amp_request_id", True)):
             headers["x-amp-request-id"] = str(getattr(request.state,"request_id",""))
         return Response(content=content, status_code=status, media_type=media_type, headers=headers)
@@ -903,8 +907,14 @@ async def s3_object(bucket: str, object_path: str, request: Request):
                     media_type: str | None=None, extra: dict | None=None) -> Response:
             mode=str(policy.get("response_mode") or "AMP_NORMALIZED").upper(); b=_backend_info(obj)
             status=int(b.get("status") or normalized_status) if mode=="RAW_BACKEND" else normalized_status
+            if normalized_status == 206:
+                status = 206
             if mode=="RAW_BACKEND":
                 headers=filter_headers(b.get("headers") or {},str(policy.get("backend_header_policy") or "SELECTED"))
+                # When AMP transforms a representation (for example Range GET),
+                # generated protocol headers must describe the bytes emitted by AMP.
+                if extra:
+                    headers.update({str(k):str(v) for k,v in extra.items() if v is not None and str(v)!=""})
             else:
                 headers=_backend_success_headers(policy,obj,extra)
                 if obj:
@@ -913,11 +923,17 @@ async def s3_object(bucket: str, object_path: str, request: Request):
                     native=b.get("native_version_id") or obj.get("version_id")
                     if native: headers.setdefault("x-amz-version-id",str(native))
                     checksum=b.get("checksum_sha256") or obj.get("checksum_sha256")
-                    if checksum: headers.setdefault("x-amz-checksum-sha256",str(checksum))
+                    # AMP catalogue SHA-256 may be hexadecimal; do not advertise it as a
+                    # native S3 checksum header with different wire semantics.
+                    if checksum: headers.setdefault("x-amp-checksum-sha256",str(checksum))
                     headers.setdefault("x-amp-object-id",str(obj.get("id") or "")); headers.setdefault("x-amp-recon-id",str(obj.get("recon_id") or ""))
                 if mode=="AMP_NORMALIZED_WITH_BACKEND":
                     headers["x-amp-backend-status"]=str(b.get("status") or "")
                     if b.get("request_id"): headers["x-amp-backend-request-id"]=str(b.get("request_id"))
+            headers=sanitize_success_headers(
+                headers, method=request.method, has_body=content is not None,
+                body_length=len(content) if content is not None else None,
+            )
             if bool(policy.get("add_amp_request_id",True)): headers["x-amp-request-id"]=str(getattr(request.state,"request_id",""))
             return Response(content=content,status_code=status,media_type=media_type,headers=headers)
 
