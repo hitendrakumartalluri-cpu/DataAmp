@@ -346,10 +346,29 @@ class OperationsService:
         active = [r for r in rows if r["lifecycle_state"] in {"ACTIVE", "MISSING"}]
         active_by_key = {str(r["object_key"]): r for r in active}
         all_by_key = {str(r["object_key"]): r for r in rows}
+
+        count_sql = """SELECT COUNT(*) c FROM catalogue_objects o
+                       JOIN catalogue_groups g ON g.id=o.catalogue_group_id
+                       WHERE g.tenant_id=? AND o.catalogue_group_id=?"""
+        count_params: list[Any] = [tenant, group_id]
+        if shard_id:
+            count_sql += " AND o.shard_id=?"; count_params.append(shard_id)
+        if prefix:
+            count_sql += " AND o.object_key LIKE ?"; count_params.append(f"{prefix}%")
+        scope_total = int(self.db.scalar(count_sql, count_params, 0) or 0)
+        active_sql = count_sql + " AND o.lifecycle_state IN ('ACTIVE','MISSING')"
+        scope_active_total = int(self.db.scalar(active_sql, count_params, 0) or 0)
+        scope_truncated = scope_total > len(rows)
+
         inventory_metrics: dict[str, Any] = {}
         inventory_errors: list[dict[str, Any]] = []
 
         try:
+            if storage_mode == "FULL" and scope_active_total > limit:
+                raise ValueError(
+                    f"FULL reconciliation scope contains {scope_active_total} active objects, exceeding limit {limit}; "
+                    "narrow the physical shard/prefix or raise the explicit limit"
+                )
             if target in {"ALL", "STORAGE"}:
                 backend = backend_from_record(self.catalog.backend_record_for_group(group_id))
 
@@ -438,16 +457,16 @@ class OperationsService:
                     inventory_keys = set(inventory)
                     catalogue_keys = set(active_by_key)
                     inventory_metrics.update({
-                        "catalogue_active": len(catalogue_keys),
-                        "count_delta": len(inventory_keys) - len(catalogue_keys),
+                        "catalogue_active": scope_active_total,
+                        "count_delta": len(inventory_keys) - scope_active_total,
                         "strategy": "GENERIC_BACKEND_LIST",
                     })
-                    if len(inventory_keys) != len(catalogue_keys):
+                    if len(inventory_keys) != scope_active_total:
                         pseudo = {"id": None, "recon_id": None, "shard_id": shard_id}
                         findings.append((pseudo, "STORAGE", "COUNT_MISMATCH", "MEDIUM",
-                                         {"catalogue_active": len(catalogue_keys),
+                                         {"catalogue_active": scope_active_total,
                                           "storage_logical": len(inventory_keys),
-                                          "delta": len(inventory_keys) - len(catalogue_keys)}))
+                                          "delta": len(inventory_keys) - scope_active_total}))
 
                     if storage_mode == "FULL":
                         for logical_key in sorted(inventory_keys):
@@ -520,6 +539,9 @@ class OperationsService:
                 "target": target,
                 "catalogue_objects": len(rows),
                 "active_objects": len(active),
+                "scope_total": scope_total,
+                "scope_active_total": scope_active_total,
+                "scope_truncated": scope_truncated,
                 "prefix": prefix,
                 "storage_mode": storage_mode,
                 "inventory": inventory_metrics,
