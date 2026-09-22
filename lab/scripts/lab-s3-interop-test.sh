@@ -37,9 +37,9 @@ if [[ -n "$EXPLICIT_GID" ]]; then
   [[ "$(jq -r '.state // empty' <<<"$GROUP")" == "ACTIVE" ]] || fail "explicit catalogue group $GID is not ACTIVE"
   TARGET_CONTAINER="$(jq -r '.container_name // empty' <<<"$GROUP")"
 else
-  GROUPS="$(curl -fsS "${CURL_AUTH[@]}" -G "$BASE/api/v1/catalogue-groups" --data-urlencode "tenant_id=$TENANT")" || fail "cannot list catalogue groups"
-  [[ "$(jq -r 'type' <<<"$GROUPS")" == "array" ]] || { echo "[debug] catalogue-groups response: $GROUPS" >&2; fail "catalogue groups API must return an array"; }
-  GID="$(jq -r --arg c "$TARGET_CONTAINER" '.[]|select(.container_name==$c and .state=="ACTIVE")|.id' <<<"$GROUPS" | head -1)"
+  CATALOGUE_GROUPS_JSON="$(curl -fsS "${CURL_AUTH[@]}" -G "$BASE/api/v1/catalogue-groups" --data-urlencode "tenant_id=$TENANT")" || fail "cannot list catalogue groups"
+  [[ "$(jq -r 'type' <<<"$CATALOGUE_GROUPS_JSON")" == "array" ]] || { echo "[debug] catalogue-groups response: $CATALOGUE_GROUPS_JSON" >&2; fail "catalogue groups API must return an array"; }
+  GID="$(jq -r --arg c "$TARGET_CONTAINER" '.[]|select(.container_name==$c and .state=="ACTIVE")|.id' <<<"$CATALOGUE_GROUPS_JSON" | head -1)"
   [[ -n "$GID" && "$GID" != "null" ]] || fail "No ACTIVE target catalogue group found"
 fi
 
