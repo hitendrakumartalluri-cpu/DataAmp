@@ -138,7 +138,7 @@ readiness_check(){
   health="$(curl -fsS "$BASE/healthz")" || return 1
   RUN_VERSION="$(jq -r '.version // "unknown"' <<<"$health")"
   [[ "$(jq -r '.status // ""' <<<"$health")" == "ok" ]] || return 1
-  [[ "$RUN_VERSION" == 0.9.0-beta.5.* ]] || { echo "expected beta.5.x, got $RUN_VERSION" >&2; return 1; }
+  [[ "$RUN_VERSION" == 0.9.0-beta.6.* ]] || { echo "expected beta.6.x development build, got $RUN_VERSION" >&2; return 1; }
   groups="$(curl -fsS "${AUTH[@]}" -G "$BASE/api/v1/catalogue-groups" --data-urlencode "tenant_id=$TENANT")" || return 1
   [[ "$(jq -r type <<<"$groups")" == "array" ]] || return 1
   PRIMARY_CAT="$(jq -r '.[] | select(.container_name=="amp-primary" and .state=="ACTIVE") | .id' <<<"$groups" | head -1)"
@@ -180,7 +180,7 @@ echo "AMP cumulative regression — profile=$PROFILE run=$RUN_ID"
 run_stage shell-syntax "Validate all lab shell scripts" shell_syntax_check
 run_stage preflight "Host/Docker lab prerequisites" ./scripts/lab-preflight.sh
 [[ "$RESET" == "1" ]] && run_stage reset "Destroy and rebuild the complete lab" reset_lab
-run_stage readiness "Validate beta.5 health, catalogues, change capture and backend-native versioning" readiness_check
+run_stage readiness "Validate beta.6 development health, catalogues, change capture and backend-native versioning" readiness_check
 run_stage baseline "Capture DLQ and FAILED-event baselines" snapshot_baseline
 run_stage smoke "Base API smoke + basic reconciliation invocation" ./scripts/lab-smoke-test.sh
 run_stage event-smoke "External MinIO create/delete -> Kafka -> Catalogue" ./scripts/lab-event-smoke-test.sh
