@@ -651,7 +651,7 @@ class CatalogService:
         return obj
 
     def list_catalogue_objects(self, *, tenant: str, group_id: str | None = None,
-                               shard_id: str | None = None, q: str = "", limit: int = 200,
+                               shard_id: str | None = None, q: str = "", prefix: str = "", limit: int = 200,
                                include_tombstones: bool = True) -> list[dict]:
         sql = """SELECT o.*,g.name catalogue_name,g.container_name,g.container_type,s.name storage_name
                  FROM catalogue_objects o JOIN catalogue_groups g ON g.id=o.catalogue_group_id
@@ -663,6 +663,8 @@ class CatalogService:
             sql += " AND o.shard_id=?"; params.append(shard_id)
         if not include_tombstones:
             sql += " AND o.lifecycle_state<>'TOMBSTONED'"
+        if prefix:
+            sql += " AND o.object_key LIKE ?"; params.append(f"{prefix}%")
         if q:
             sql += " AND (o.object_key LIKE ? OR CAST(o.recon_id AS TEXT) LIKE ?)"; params += [f"%{q}%", f"%{q}%"]
         sql += " ORDER BY o.updated_at DESC LIMIT ?"; params.append(limit)
