@@ -272,7 +272,11 @@ class OperationsService:
                     "manifest_key": item.key,
                 }
             except Exception as exc:
-                errors.append({"physical_key": item.key, "error": str(exc)})
+                # A customer may legitimately own a non-AMP object named manifest.json.
+                # Treat parse failures as reconciliation evidence only inside AMP's
+                # reserved managed-package namespace; otherwise it is just a direct object.
+                if str(item.key).startswith(".amp/objects/"):
+                    errors.append({"physical_key": item.key, "error": str(exc)})
 
         # Then expose non-package objects as direct logical objects.
         for item in native_items:
