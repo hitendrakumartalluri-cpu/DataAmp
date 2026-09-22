@@ -50,6 +50,7 @@ cp "$repo_root/docs/modules/MANAGED_OBJECTS.md" "$wiki_dir/Module-Managed-Object
 cp "$repo_root/docs/modules/CATALOGUE.md" "$wiki_dir/Module-Catalogue.md"
 cp "$repo_root/docs/modules/CHANGE_CAPTURE.md" "$wiki_dir/Module-Change-Capture.md"
 cp "$repo_root/docs/modules/MIGRATION.md" "$wiki_dir/Module-Migration.md"
+cp "$repo_root/docs/modules/RECONCILIATION.md" "$wiki_dir/Module-Reconciliation.md"
 cp "$repo_root/docs/modules/INDEXING_HOP.md" "$wiki_dir/Module-Indexing-Hop.md"
 cp "$repo_root/docs/modules/SEARCH_AI.md" "$wiki_dir/Module-Search-AI.md"
 cp "$repo_root/docs/modules/GOVERNANCE.md" "$wiki_dir/Module-Governance.md"
@@ -84,6 +85,7 @@ cat > "$wiki_dir/_Sidebar.md" <<'EOF'
 - [Catalogue](Module-Catalogue)
 - [Change capture](Module-Change-Capture)
 - [Migration and hydration](Module-Migration)
+- [Reconciliation](Module-Reconciliation)
 - [Indexing and Apache Hop](Module-Indexing-Hop)
 - [Search, analytics and AI](Module-Search-AI)
 - [Governance and compliance](Module-Governance)
