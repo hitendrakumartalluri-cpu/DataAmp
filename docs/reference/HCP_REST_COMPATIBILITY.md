@@ -1,4 +1,4 @@
-# HCP REST Compatibility — AMP 0.9.0-beta.5.0
+# HCP REST Compatibility — AMP 0.9.0-beta.5.0.6
 
 AMP provides a controlled HCP-style REST compatibility surface over the canonical managed-object service.
 
