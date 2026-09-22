@@ -11,9 +11,9 @@ echo "==> overview"
 curl -fsS "$BASE/api/v1/overview" | python3 -m json.tool
 
 echo "==> catalogue groups"
-GROUPS="$(curl -fsS "$BASE/api/v1/catalogue-groups")"
-echo "$GROUPS" | python3 -m json.tool
-GID="$(python3 -c 'import json,sys; x=json.load(sys.stdin); print(next((g["id"] for g in x if "Legacy" in g.get("name","")), x[0]["id"] if x else ""))' <<<"$GROUPS")"
+CATALOGUE_GROUPS_JSON="$(curl -fsS "$BASE/api/v1/catalogue-groups")"
+echo "$CATALOGUE_GROUPS_JSON" | python3 -m json.tool
+GID="$(python3 -c 'import json,sys; x=json.load(sys.stdin); print(next((g["id"] for g in x if "Legacy" in g.get("name","")), x[0]["id"] if x else ""))' <<<"$CATALOGUE_GROUPS_JSON")"
 [[ -n "$GID" ]] || { echo "no catalogue group found"; exit 1; }
 
 echo "==> search"
