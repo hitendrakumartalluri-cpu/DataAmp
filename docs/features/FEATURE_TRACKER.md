@@ -8,7 +8,7 @@
 - **Gateway umbrella:** [AMP-GW-EPIC-001 — issue #23](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/23)
 - **Implemented Gateway/package capabilities:** 15 (`AMP-GW-001`–`AMP-GW-011`, `AMP-PKG-001`–`AMP-PKG-004`)
 - **Automated baseline:** 19 Python tests passing; see [baseline validation](../testing/BASELINE_VALIDATION.md)
-- **Verification boundary:** clean lab acceptance remains pending, so implemented capabilities are not yet promoted to **Verified**
+- **Verification boundary:** capabilities move from **Implemented** to **Verified** only after their dedicated acceptance test and the cumulative regression gate pass; see [Testing Cycles](../testing/TEST_CYCLES.md)
 - **Beta 6 Gateway gaps:** multipart S3, CopyObject/presigned URLs/version APIs, enterprise identity/RBAC, failure injection, scale, WAN, HA and security certification
 
 
