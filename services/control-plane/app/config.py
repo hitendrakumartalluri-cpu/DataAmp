@@ -8,7 +8,7 @@ BASE_DIR = Path(__file__).resolve().parents[2]
 @dataclass(frozen=True)
 class Settings:
     app_name: str = os.getenv("AMP_APP_NAME", "AMP Enterprise Beta")
-    version: str = os.getenv("AMP_VERSION", "0.9.0-beta.5.0")
+    version: str = os.getenv("AMP_VERSION", "0.9.0-beta.5.0.6")
     database_url: str = os.getenv("AMP_DATABASE_URL", f"sqlite:///{BASE_DIR / 'amp.db'}")
     api_key: str = os.getenv("AMP_API_KEY", "")
     demo_mode: bool = os.getenv("AMP_DEMO_MODE", "true").lower() in {"1", "true", "yes", "on"}
