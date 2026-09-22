@@ -191,5 +191,6 @@ run_stage s3-interop "S3 SigV4 + range/list/metadata/tags + HCP<->S3 interoperab
 run_stage native-version "Backend-native payload/annotation versions and historical retrieval" env AMP_VERSION_TEST_CATALOGUE_GROUP_ID="$PRIMARY_CAT" ./scripts/lab-native-version-test.sh
 run_stage response-policy "RAW_BACKEND and normalized Gateway response policies" env AMP_RESPONSE_TEST_CATALOGUE_GROUP_ID="$PRIMARY_CAT" ./scripts/lab-response-policy-test.sh
 run_stage migration-hydration "Migration dry-run/copy and read-through hydration" env AMP_MIG_TEST_TIMEOUT="$MIG_TIMEOUT" ./scripts/lab-migration-hydration-test.sh
+run_stage storage-reconciliation "Targeted, tally and full Storage↔Catalogue reconciliation with controlled drift" env AMP_RECON_TEST_CATALOGUE_GROUP_ID="$PRIMARY_CAT" ./scripts/lab-reconciliation-test.sh
 run_stage final-event-health "Ensure Kafka drained and no new DLQ/FAILED events were introduced" final_event_health
 finish_and_exit
