@@ -1,7 +1,7 @@
 # Project Status
 
 **As of:** 2026-09-22  
-**Baseline:** 0.9.0-beta.5.0  
+**Baseline:** 0.9.0-beta.5.0.6  
 **Lifecycle:** Enterprise beta; lab validation required; not production-certified
 
 ## Current objective
@@ -24,14 +24,15 @@ Stabilize Beta 5 in a clean lab, close protocol and operational hardening gaps, 
 
 - Unit suite passes from the governed repository layout: **19 passed** on 2026-09-19.
 - The complete clean-lab acceptance sequence is documented under `lab/docs/ACCEPTANCE_TEST_PLAN.md`.
-- Cumulative regression is now the verification gate: `scripts/lab-cumulative-regression.sh` re-runs all previously proven functional stages and retains per-stage evidence under `.amp-test-results/`.
-- Manual Beta 5 lab acceptance has demonstrated PASS for package placement, S3/HCP interoperability, backend-native version ownership, migration/hydration, and Gateway response policy; a single complete cumulative run is still required before promoting the whole baseline to **Verified**.
+- Cumulative regression is the verification gate: `scripts/lab-cumulative-regression.sh` re-runs all previously proven functional stages and retains per-stage evidence under `.amp-test-results/`.
+- **Full cumulative regression PASS** on 2026-09-22 for AMP `0.9.0-beta.5.0.6`, run `20260922T110649Z-48979`; all 14 stages passed. Evidence: `docs/testing/evidence/BETA5_FULL_REGRESSION_20260922.md`.
+- The tested Gateway/Catalogue/Migration functional baseline is now **Verified in the lab topology**. This is not production certification.
 - No WAN, scale, HA, failover, security federation, or production HOP/Solr certification exists yet.
 
 ## Immediate next actions
 
-1. Run the cumulative regression gate after every increment; use individual stages only for fault isolation.
-2. Run the `full` cumulative profile from a clean lab and retain the generated evidence before release promotion.
+1. Continue to run the cumulative regression gate after every increment; use individual stages only for fault isolation.
+2. Add reconciliation as the next cumulative functional stage, then begin controlled performance/resilience testing.
 3. Implement real HCP adapter/MQE integration and production HOP-to-Solr pipelines.
 4. Add OIDC/RBAC, secrets handling, metrics, tracing, and SLOs before production claims.
 
