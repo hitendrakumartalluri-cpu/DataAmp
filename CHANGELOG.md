@@ -1,5 +1,40 @@
 # Changelog
 
+## 0.9.0-beta.5.0.6 — frozen Beta 5 functional baseline
+
+- Fixed normalized/re-serialized error response framing so backend Content-Length, Content-Type, content-encoding and whole-body checksum headers cannot describe bytes AMP did not emit.
+- Preserves safe diagnostics such as backend request IDs and Retry-After.
+- Clean-lab full cumulative regression PASS on 2026-09-22: run `20260922T113642Z-52430`, 15/15 stages.
+- Functional Gateway/Catalogue/Change-Capture/Managed-Package/Native-Version/Migration-Hydration baseline frozen for Beta 5.
+
+## 0.9.0-beta.5.0.5 — Range checksum hotfix
+
+- Suppressed full-object `x-amz-checksum-*`, Content-MD5 and Digest headers on transformed partial responses.
+- Preserved generated Content-Range in RAW_BACKEND mode.
+- AMP internal hexadecimal SHA-256 is exposed as `x-amp-checksum-sha256`, not as a native S3 checksum header.
+
+## 0.9.0-beta.5.0.4 — Range response framing hotfix
+
+- Range GET now reports Content-Length for the bytes AMP actually returns.
+- Full GET normalizes Content-Length to the emitted body size.
+- 206 Partial Content remains 206 in RAW_BACKEND mode when AMP performs the range transformation.
+
+## 0.9.0-beta.5.0.3 — PUT/DELETE response-header hotfix
+
+- Prevented verification-HEAD representation headers, especially Content-Length, from leaking into bodyless PUT/DELETE responses.
+- Preserved the authoritative backend PUT response metadata while still using HEAD to verify stored object state.
+
+## 0.9.0-beta.5.0.2 — shell acceptance-harness hotfix
+
+- Replaced use of Bash's reserved `GROUPS` variable with `CATALOGUE_GROUPS_JSON` in lab acceptance harnesses.
+
+## 0.9.0-beta.5.0.1 — catalogue event receipt hotfix
+
+- Moved package-classification and watermark processing inside the durable event failure boundary.
+- Allowed replay of stranded `RECEIVED` events as well as `FAILED` events.
+- Narrowed package-member detection to AMP-owned payload, manifest and annotation keys; CLIENT_PATH race detection remains manifest-based.
+- Prevented Kafka-drained / Catalogue-empty states from being silently hidden.
+
 ## 0.9.0-beta.5.0 - backend-authoritative Gateway consolidation
 
 - Locked the product boundary: backend storage owns native versioning, WORM, retention, legal hold/Object Lock, lifecycle, pruning, durability and compliance decisions. AMP observes/translates/reconciles only.
