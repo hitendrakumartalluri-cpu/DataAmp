@@ -133,6 +133,10 @@ class ReconcileIn(BaseModel):
     catalogue_group_id: str
     target: str = "ALL"
     shard_id: str | None = None
+    prefix: str = ""
+    storage_mode: str = "TARGETED"
+    verify_package_members: bool = True
+    limit: int = 10000
 
 
 class DatasetIn(BaseModel):
@@ -626,7 +630,11 @@ def migration(body: MigrationIn):
 @app.post("/api/v1/reconciliation/run")
 def reconcile(body: ReconcileIn):
     try:
-        return ops.reconcile(body.tenant_id, body.catalogue_group_id, body.target, body.shard_id)
+        return ops.reconcile(
+            body.tenant_id, body.catalogue_group_id, body.target, body.shard_id,
+            prefix=body.prefix, storage_mode=body.storage_mode,
+            verify_package_members=body.verify_package_members, limit=body.limit,
+        )
     except Exception as exc:
         raise HTTPException(400, str(exc))
 
@@ -648,13 +656,21 @@ def jobs(tenant_id: str = settings.default_tenant, catalogue_group_id: str | Non
 
 
 @app.get("/api/v1/reconciliation/findings")
-def findings(tenant_id: str = settings.default_tenant, catalogue_group_id: str | None = None, limit: int = 200):
+def findings(tenant_id: str = settings.default_tenant, catalogue_group_id: str | None = None,
+             job_id: str | None = None, target_type: str | None = None,
+             severity: str | None = None, limit: int = 200):
     sql = """SELECT r.*,o.object_key,g.name catalogue_name FROM reconciliation_results r
              JOIN jobs j ON j.id=r.job_id LEFT JOIN catalogue_objects o ON o.id=r.catalogue_object_id
              LEFT JOIN catalogue_groups g ON g.id=r.catalogue_group_id WHERE j.tenant_id=?"""
     params: list = [tenant_id]
     if catalogue_group_id:
         sql += " AND r.catalogue_group_id=?"; params.append(catalogue_group_id)
+    if job_id:
+        sql += " AND r.job_id=?"; params.append(job_id)
+    if target_type:
+        sql += " AND r.target_type=?"; params.append(target_type.upper())
+    if severity:
+        sql += " AND r.severity=?"; params.append(severity.upper())
     sql += " ORDER BY r.created_at DESC LIMIT ?"; params.append(limit)
     rows = db.fetchall(sql, params)
     for r in rows:
