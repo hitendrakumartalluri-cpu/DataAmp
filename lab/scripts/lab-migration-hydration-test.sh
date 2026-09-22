@@ -8,10 +8,10 @@ fail(){ echo "[FAIL] $*" >&2; exit 1; }; ok(){ echo "[ok] $*"; }
 command -v curl >/dev/null || fail "curl required"; command -v jq >/dev/null || fail "jq required"
 curl -fsS "$BASE/healthz" >/dev/null || fail "AMP not healthy"
 API_KEY="${AMP_API_KEY:-}"; [[ -z "$API_KEY" && -f .env ]] && API_KEY="$(awk -F= '$1=="AMP_API_KEY"{sub(/^AMP_API_KEY=/,"");print;exit}' .env || true)"; AUTH=(); [[ -n "$API_KEY" ]] && AUTH=(-H "x-api-key: $API_KEY")
-GROUPS="$(curl -fsS "${AUTH[@]}" -G "$BASE/api/v1/catalogue-groups" --data-urlencode "tenant_id=$TENANT")"
-[[ "$(jq -r type <<<"$GROUPS")" == array ]] || fail "catalogue groups API did not return array"
-SRC="$(jq -r --arg c "$SRC_CONTAINER" '.[]|select(.container_name==$c and .state=="ACTIVE")|.id' <<<"$GROUPS" | head -1)"
-TGT="$(jq -r --arg c "$TGT_CONTAINER" '.[]|select(.container_name==$c and .state=="ACTIVE")|.id' <<<"$GROUPS" | head -1)"
+CATALOGUE_GROUPS_JSON="$(curl -fsS "${AUTH[@]}" -G "$BASE/api/v1/catalogue-groups" --data-urlencode "tenant_id=$TENANT")"
+[[ "$(jq -r type <<<"$CATALOGUE_GROUPS_JSON")" == array ]] || fail "catalogue groups API did not return array"
+SRC="$(jq -r --arg c "$SRC_CONTAINER" '.[]|select(.container_name==$c and .state=="ACTIVE")|.id' <<<"$CATALOGUE_GROUPS_JSON" | head -1)"
+TGT="$(jq -r --arg c "$TGT_CONTAINER" '.[]|select(.container_name==$c and .state=="ACTIVE")|.id' <<<"$CATALOGUE_GROUPS_JSON" | head -1)"
 [[ -n "$SRC" && "$SRC" != null && -n "$TGT" && "$TGT" != null ]] || fail "source/target catalogue not found"
 
 echo "AMP migration + hydration integration test"
