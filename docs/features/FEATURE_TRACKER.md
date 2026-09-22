@@ -66,9 +66,9 @@
 | AMP-MIG-007 | Scheduled migration filters, priority, concurrency, throttle, retry, reporting | Beta 6 | Approved | Detailed implementation and acceptance tests pending |
 | AMP-MIG-008 | Historic-version migration and mapping | GA candidate | Deferred | Version-by-version evidence required |
 | AMP-MIG-009 | Native compliance-state translation/reconciliation | GA candidate | Deferred | Only backend-native enforcement permitted |
-| AMP-REC-001 | Storage reconciliation | Beta 5 | Implemented | Lab/API validation pending rerun |
-| AMP-REC-002 | Solr/index reconciliation and orphan detection | Beta 5 | Implemented | Simulator beta; production pipeline evidence pending |
-| AMP-REC-003 | AI artifact reconciliation | Beta 5 | Implemented | Simulator beta; production evidence pending |
+| AMP-REC-001 | Storage reconciliation | Beta 6 increment | In validation | TARGETED/TALLY/FULL, package integrity, controlled-drift harness; [#24](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/24) |
+| AMP-REC-002 | Solr/index reconciliation and orphan detection | Beta 6 increment | Implemented baseline | Next acceptance stage; simulator beta, production Solr evidence pending; [#24](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/24) |
+| AMP-REC-003 | AI artifact reconciliation | Beta 6 increment | Implemented baseline | Follows index reconciliation; production evidence pending; [#24](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/24) |
 
 ## Indexing, search, analytics, governance, and AI
 
