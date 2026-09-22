@@ -211,54 +211,51 @@ class EventService:
         if group["tenant_id"] != event["tenant_id"]:
             raise ValueError("event tenant/catalogue mismatch")
         event_id, is_new, existing_status = self.record_received(event, topic=topic, partition=partition, offset=offset)
-        if not is_new and not (force and existing_status == "FAILED"):
+        replayable = existing_status in {"FAILED", "RECEIVED"}
+        if not is_new and not (force and replayable):
             return {"storage_event_id": event_id, "status": "DUPLICATE", "applied": False}
-        if force and existing_status == "FAILED":
+        if force and replayable:
             self.db.execute("UPDATE storage_events SET status='RECEIVED',error_message=NULL WHERE id=?", (event_id,))
 
-        # AMP-managed package members are physical implementation details, not
-        # business catalogue objects. Keep their native storage events for audit
-        # but never create rows for payload/annotation/manifest members.
-        event_key = str(event.get("object_key") or "")
-        managed_member = event_key.startswith(".amp/") or self.catalog.is_managed_physical_key(group["id"], event_key)
-        if not managed_member:
-            # Handle the narrow race where a native storage event arrives before
-            # the gateway catalogue transaction. V3 CLIENT_PATH packages are not
-            # under .amp/, so validate the package manifest directly in storage.
-            package_root = None
-            manifest_key = None
-            if event_key.endswith("/payload"):
-                package_root = event_key[:-len("/payload")]
-                manifest_key = f"{package_root}/manifest.json"
-            elif "/annotations/" in event_key:
-                package_root = event_key.split("/annotations/", 1)[0]
-                manifest_key = f"{package_root}/manifest.json"
-            elif event_key.endswith("/manifest.json"):
-                package_root = event_key[:-len("/manifest.json")]
-                manifest_key = event_key
-            elif "/.amp/" in event_key:
-                package_root = event_key.split("/.amp/", 1)[0]
-                manifest_key = f"{package_root}/.amp/manifest.json"
-            if manifest_key:
-                try:
-                    backend = backend_from_record(self.catalog.backend_record_for_group(group["id"]))
-                    raw_manifest = backend.get(manifest_key)
-                    manifest = json.loads(raw_manifest.decode("utf-8"))
-                    layout = str(manifest.get("storageLayout") or "")
-                    declared_root = str(manifest.get("packageRoot") or "").rstrip("/")
-                    managed_member = layout in {"AMP_PACKAGE_V1", "AMP_PACKAGE_V2", "AMP_PACKAGE_V3"} and declared_root == str(package_root or "").rstrip("/")
-                except Exception:
-                    managed_member = False
-        if managed_member:
-            self.db.execute("UPDATE storage_events SET status='IGNORED_SYSTEM',applied_at=? WHERE id=?", (now(), event_id))
-            return {"storage_event_id": event_id, "status": "IGNORED_SYSTEM", "applied": False}
-
-        if self._stale_by_sequencer(event):
-            self.db.execute("UPDATE storage_events SET status='IGNORED_STALE',applied_at=? WHERE id=?", (now(), event_id))
-            return {"storage_event_id": event_id, "status": "IGNORED_STALE", "applied": False}
-
-        typ = event["event_type"].upper()
+        # Everything after durable receipt creation is inside the failure boundary so
+        # classifier/watermark failures cannot strand a RECEIVED row while Kafka advances.
         try:
+            event_key = str(event.get("object_key") or "")
+            managed_member = event_key.startswith(".amp/") or self.catalog.is_managed_physical_key(group["id"], event_key)
+            if not managed_member:
+                package_root = None
+                manifest_key = None
+                if event_key.endswith("/payload"):
+                    package_root = event_key[:-len("/payload")]
+                    manifest_key = f"{package_root}/manifest.json"
+                elif "/annotations/" in event_key:
+                    package_root = event_key.split("/annotations/", 1)[0]
+                    manifest_key = f"{package_root}/manifest.json"
+                elif event_key.endswith("/manifest.json"):
+                    package_root = event_key[:-len("/manifest.json")]
+                    manifest_key = event_key
+                elif "/.amp/" in event_key:
+                    package_root = event_key.split("/.amp/", 1)[0]
+                    manifest_key = f"{package_root}/.amp/manifest.json"
+                if manifest_key:
+                    try:
+                        backend = backend_from_record(self.catalog.backend_record_for_group(group["id"]))
+                        raw_manifest = backend.get(manifest_key)
+                        manifest = json.loads(raw_manifest.decode("utf-8"))
+                        layout = str(manifest.get("storageLayout") or "")
+                        declared_root = str(manifest.get("packageRoot") or "").rstrip("/")
+                        managed_member = layout in {"AMP_PACKAGE_V1", "AMP_PACKAGE_V2", "AMP_PACKAGE_V3"} and declared_root == str(package_root or "").rstrip("/")
+                    except Exception:
+                        managed_member = False
+            if managed_member:
+                self.db.execute("UPDATE storage_events SET status='IGNORED_SYSTEM',applied_at=? WHERE id=?", (now(), event_id))
+                return {"storage_event_id": event_id, "status": "IGNORED_SYSTEM", "applied": False}
+
+            if self._stale_by_sequencer(event):
+                self.db.execute("UPDATE storage_events SET status='IGNORED_STALE',applied_at=? WHERE id=?", (now(), event_id))
+                return {"storage_event_id": event_id, "status": "IGNORED_STALE", "applied": False}
+
+            typ = event["event_type"].upper()
             if typ in {"OBJECT_CREATED", "OBJECT_UPDATED", "OBJECT_METADATA_CHANGED", "OBJECT_RESTORED"}:
                 backend = backend_from_record(self.catalog.backend_record_for_group(group["id"]))
                 stat = backend.head(event["object_key"])
