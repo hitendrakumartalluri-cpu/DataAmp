@@ -1,0 +1,42 @@
+name: AMP CI
+
+on:
+  push:
+    branches: [main, "release/**"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  unit-and-static:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install control-plane dependencies
+        run: pip install -r services/control-plane/requirements.txt
+
+      - name: Python unit/regression tests
+        run: |
+          cd services/control-plane
+          PYTHONPATH=. python -m pytest -q
+
+      - name: Python compile check
+        run: |
+          python -m compileall -q services/control-plane/app
+
+      - name: Shell syntax
+        run: |
+          find lab/scripts scripts -type f -name '*.sh' -print0 |
+            xargs -0 -n1 bash -n
+
+      - name: JavaScript syntax
+        run: node --check services/control-plane/app/static/app.js
