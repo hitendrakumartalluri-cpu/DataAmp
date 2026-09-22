@@ -652,7 +652,6 @@ def test_storage_reconciliation_targeted_tally_and_full_detect_drift():
     # object appears. Reconciliation must detect, never auto-repair.
     (root / "a.txt").unlink()
     (root / "b.txt").write_text("bravo-drifted-and-longer")
-    (root / "extra.txt").write_text("not catalogued")
 
     targeted = ops.reconcile("trecon", g["id"], "STORAGE", storage_mode="TARGETED")
     assert targeted["finding_counts"]["MISSING_FROM_STORAGE"] == 1
@@ -660,8 +659,9 @@ def test_storage_reconciliation_targeted_tally_and_full_detect_drift():
 
     tally = ops.reconcile("trecon", g["id"], "STORAGE", storage_mode="TALLY")
     assert tally["finding_counts"]["COUNT_MISMATCH"] == 1
-    assert tally["inventory"]["logical_objects"] == 2
+    assert tally["inventory"]["logical_objects"] == 1
 
+    (root / "extra.txt").write_text("not catalogued")
     full = ops.reconcile("trecon", g["id"], "STORAGE", storage_mode="FULL")
     assert full["finding_counts"]["MISSING_FROM_STORAGE"] == 1
     assert full["finding_counts"]["SIZE_MISMATCH"] == 1
