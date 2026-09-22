@@ -25,8 +25,9 @@ Use it to understand:
 2. [Current vs Complete Product](Product-Capability-Map)
 3. [Module Overview](Modules)
 4. [Architecture](Architecture)
-5. [Feature Tracker](Feature-Tracker)
-6. [Architecture Decisions](ADR-0001-catalogue-boundary)
+5. [Validation Model](Validation-Model)
+6. [Feature Tracker](Feature-Tracker)
+7. [Architecture Decisions](ADR-0001-catalogue-boundary)
 
 ## Documentation boundary
 
@@ -38,6 +39,7 @@ EOF
 cp "$repo_root/docs/PRODUCT_VISION.md" "$wiki_dir/Product-Vision.md"
 cp "$repo_root/docs/PRODUCT_CAPABILITY_MAP.md" "$wiki_dir/Product-Capability-Map.md"
 cp "$repo_root/docs/ARCHITECTURE.md" "$wiki_dir/Architecture.md"
+cp "$repo_root/docs/VALIDATION_MODEL.md" "$wiki_dir/Validation-Model.md"
 cp "$repo_root/docs/GLOSSARY.md" "$wiki_dir/Glossary.md"
 cp "$repo_root/docs/features/FEATURE_TRACKER.md" "$wiki_dir/Feature-Tracker.md"
 cp "$repo_root/docs/decision-records/DECISION_MATRIX.md" "$wiki_dir/Decision-Matrix.md"
@@ -90,6 +92,7 @@ cat > "$wiki_dir/_Sidebar.md" <<'EOF'
 ## Architecture
 
 - [Architecture overview](Architecture)
+- [Validation model](Validation-Model)
 - [Backend authority](Backend-Authority)
 - [Catalogue sharding](Catalogue-Sharding)
 - [Change capture](Change-Capture)
