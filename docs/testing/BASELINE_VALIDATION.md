@@ -30,3 +30,13 @@ Warnings from the unit run are dependency deprecations around Starlette `TestCli
 | Run ID | PASS | `20260922T113642Z-52430` |
 | Gateway/Catalogue/Migration clean-lab gate | ACCEPTED (lab) | See `docs/testing/evidence/BETA5_CLEAN_LAB_FULL_REGRESSION_20260922.md` |
 | Production certification | NOT ACHIEVED | Reconciliation depth, real adapters, scale/WAN/HA, identity/RBAC and formal security gates remain |
+
+
+## 2026-09-23 Beta 6 Storage reconciliation
+
+| Check | Result | Notes |
+|---|---|---|
+| Dedicated Storage↔Catalogue reconciliation harness | PASS | TARGETED, TALLY, FULL and controlled drift scenarios completed successfully |
+| Cumulative regression with reconciliation stage | PASS | Operator confirmed full regression remained green |
+| AMP-REC-001 | VERIFIED (lab) | See `docs/testing/evidence/BETA6_STORAGE_RECONCILIATION_20260923.md` |
+| Production-scale reconciliation | NOT CERTIFIED | HCP MQE/AWS Inventory, scale, resumability and parallel shard execution remain future gates |
