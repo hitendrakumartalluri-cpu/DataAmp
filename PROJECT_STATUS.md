@@ -1,6 +1,6 @@
 # Project Status
 
-**As of:** 2026-09-22  
+**As of:** 2026-09-23  
 **Development baseline:** 0.9.0-beta.6.0-dev.1  
 **Frozen reference:** 0.9.0-beta.5.0.6  
 **Lifecycle:** Enterprise beta; lab validation required; not production-certified
@@ -29,15 +29,16 @@ Keep the accepted Beta 5 reference frozen while building Beta 6 reconciliation, 
 - **Full cumulative regression PASS** on 2026-09-22 for AMP `0.9.0-beta.5.0.6`, run `20260922T110649Z-48979`; all 14 stages passed.
 - **Clean-lab full cumulative regression PASS** on 2026-09-22, run `20260922T113642Z-52430`; reset + all 15 stages passed. Evidence: `docs/testing/evidence/BETA5_CLEAN_LAB_FULL_REGRESSION_20260922.md`.
 - The tested Gateway/Catalogue/Change-Capture/Managed-Package/Native-Version/Migration-Hydration functional baseline is now **Accepted for Beta 5 in the lab topology**. This is not production certification.
+- **Storage↔Catalogue reconciliation is Verified (lab)** on `0.9.0-beta.6.0-dev.1`: TARGETED, TALLY, FULL, package integrity and cumulative regression all passed. Evidence: `docs/testing/evidence/BETA6_STORAGE_RECONCILIATION_20260923.md`.
 - No WAN, scale, HA, failover, security federation, or production HOP/Solr certification exists yet.
 
 ## Immediate next actions
 
-1. Validate the new Storage↔Catalogue reconciliation stage, then promote `AMP-REC-001` only after cumulative evidence passes.
-2. Add Index/Solr reconciliation, then AI artifact reconciliation.
+1. Build and validate Index/Solr reconciliation: completeness, stale content, orphan records and pipeline-version drift.
+2. Add AI artifact reconciliation after Index/Solr acceptance.
 3. Continue to run the cumulative regression gate after every increment; use individual stages only for fault isolation.
-3. Implement real HCP adapter/MQE integration and production HOP-to-Solr pipelines.
-4. Add OIDC/RBAC, secrets handling, metrics, tracing, and SLOs before production claims.
+4. Implement real HCP MQE/AWS inventory providers and production HOP-to-Solr pipelines.
+5. Add OIDC/RBAC, secrets handling, metrics, tracing, and SLOs before production claims.
 
 ## Known blockers and risks
 
