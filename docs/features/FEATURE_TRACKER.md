@@ -4,7 +4,7 @@
 **Frozen reference:** 0.9.0-beta.5.0.6  
 **Status rule:** Implemented means code exists; Verified requires recorded passing evidence.
 
-## Achievement snapshot — 2026-09-21
+## Achievement snapshot — 2026-09-23
 
 - **Gateway umbrella:** [AMP-GW-EPIC-001 — issue #23](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/23)
 - **Implemented Gateway/package capabilities:** 15 (`AMP-GW-001`–`AMP-GW-011`, `AMP-PKG-001`–`AMP-PKG-004`)
@@ -67,7 +67,7 @@
 | AMP-MIG-007 | Scheduled migration filters, priority, concurrency, throttle, retry, reporting | Beta 6 | Approved | Detailed implementation and acceptance tests pending |
 | AMP-MIG-008 | Historic-version migration and mapping | GA candidate | Deferred | Version-by-version evidence required |
 | AMP-MIG-009 | Native compliance-state translation/reconciliation | GA candidate | Deferred | Only backend-native enforcement permitted |
-| AMP-REC-001 | Storage reconciliation | Beta 6 increment | In validation | TARGETED/TALLY/FULL, package integrity, controlled-drift harness; [#24](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/24) |
+| AMP-REC-001 | Storage reconciliation | Beta 6 increment | Verified (lab) | TARGETED/TALLY/FULL + package integrity + controlled-drift + cumulative regression PASS; [evidence](../testing/evidence/BETA6_STORAGE_RECONCILIATION_20260923.md), [#24](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/24) |
 | AMP-REC-002 | Solr/index reconciliation and orphan detection | Beta 6 increment | Implemented baseline | Next acceptance stage; simulator beta, production Solr evidence pending; [#24](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/24) |
 | AMP-REC-003 | AI artifact reconciliation | Beta 6 increment | Implemented baseline | Follows index reconciliation; production evidence pending; [#24](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/24) |
 
