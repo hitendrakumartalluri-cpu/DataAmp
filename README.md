@@ -25,6 +25,15 @@ AMP is **not** a storage gateway and does not replace the client-facing S3, Azur
 - [Feature tracker](docs/features/FEATURE_TRACKER.md)
 - [Gateway retirement archive](docs/archive/GATEWAY_BETA_ARCHIVE.md)
 - [Product Wiki](https://github.com/hitendrakumartalluri-cpu/DataAmp/wiki)
+- [0.10.0 Beta 1 release notes](docs/releases/BETA_0_10_0.md)
+
+## Run the Beta
+
+```bash
+docker compose up --build
+```
+
+Open `http://localhost:8080` for the enterprise console or `http://localhost:8080/docs` for the API. Demo mode seeds two local storage scopes, a processing pipeline, a Solr-compatible index, a PII rule and a dry-run hold policy.
 
 ## Repository boundaries
 

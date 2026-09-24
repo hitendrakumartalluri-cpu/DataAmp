@@ -6,6 +6,7 @@ from app.services.catalog import CatalogService
 from app.services.events import EventService
 from app.services.operations import OperationsService
 from app.services.processing import ProcessingService
+from app.services.enterprise import EnterpriseService
 
 
 def stack(name: str):
@@ -84,3 +85,31 @@ def test_index_reconciliation_detects_missing_projection():
     result = operations.reconcile("test", scope["id"], target="INDEX")
     assert result["findings"] == 1
     assert result["finding_counts"]["MISSING_FROM_INDEX"] == 1
+
+
+def test_enterprise_search_pii_analytics_and_governance_are_end_to_end():
+    root, db, catalog, operations, processing = stack("enterprise")
+    enterprise = EnterpriseService(db)
+    enterprise.init_schema()
+    source = root / "source"
+    source.mkdir()
+    (source / "customer.txt").write_text("Contact jane@example.com for the customer contract")
+    _storage, scope = local_scope(catalog, source)
+    operations.discover("test", scope["id"])
+    processing.index_source(scope["id"])
+    enterprise.seed_defaults("test", [scope["id"]])
+
+    pipeline = enterprise.list_pipelines("test")[0]
+    queued = enterprise.pipeline_run(pipeline["id"])
+    assert queued["source_group_id"] == scope["id"]
+    assert enterprise.pipeline_complete(pipeline["id"], "COMPLETE", {})["status"] == "COMPLETE"
+
+    routed = enterprise.routed_search("test", "customer", processing)
+    assert routed["total"] == 1
+    assert routed["results"][0]["object_key"] == "customer.txt"
+    scanned = enterprise.scan_pii("test")
+    assert scanned["findings"] == 1
+    assert enterprise.analytics("test")["stats"]["sensitive_objects"] == 1
+    plan = enterprise.evaluate_governance("test", "DRY_RUN")
+    assert plan["actions"] == 1
+    assert plan["source_mutations"] == 0

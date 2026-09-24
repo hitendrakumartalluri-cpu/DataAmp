@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import re
 import uuid
 from pathlib import Path
 
@@ -16,6 +17,7 @@ from .services.processing import ProcessingService
 from .services.operations import OperationsService
 from .services.events import EventService
 from .services.scheduler import ScheduleService
+from .services.enterprise import EnterpriseService
 
 app = FastAPI(title="AMP Enterprise Beta API", version=settings.version, docs_url="/docs", redoc_url="/redoc")
 db = Database(settings.database_url)
@@ -24,6 +26,7 @@ processing = ProcessingService(db, catalog)
 ops = OperationsService(db, catalog)
 events = EventService(db, catalog)
 schedules = ScheduleService(db, catalog, ops)
+enterprise = EnterpriseService(db)
 STATIC = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
@@ -50,6 +53,7 @@ async def request_context(request: Request, call_next):
 @app.on_event("startup")
 def startup():
     db.init_schema()
+    enterprise.init_schema()
     if settings.demo_mode:
         seed_demo()
 
@@ -164,6 +168,54 @@ class ScheduleIn(BaseModel):
     interval_minutes: int
     enabled: bool = True
     next_run_at: str | None = None
+
+
+class PipelineIn(BaseModel):
+    tenant_id: str = settings.default_tenant
+    name: str
+    description: str = ""
+    source_group_id: str | None = None
+    stages: list[str] = Field(default_factory=list)
+    schedule: str = "EVENT_DRIVEN"
+
+
+class IndexIn(BaseModel):
+    tenant_id: str = settings.default_tenant
+    name: str
+    engine: str = "SOLR"
+    endpoint: str | None = None
+    aliases: dict[str, str] = Field(default_factory=dict)
+    fields: list[str] = Field(default_factory=list)
+    source_group_ids: list[str] = Field(default_factory=list)
+
+
+class RoutedSearchIn(BaseModel):
+    tenant_id: str = settings.default_tenant
+    query: str
+    index_ids: list[str] = Field(default_factory=list)
+    limit: int = 20
+
+
+class PiiRuleIn(BaseModel):
+    tenant_id: str = settings.default_tenant
+    name: str
+    pattern: str
+    fields: list[str] = Field(default_factory=lambda: ["content"])
+    classification: str = "SENSITIVE"
+
+
+class GovernancePolicyIn(BaseModel):
+    tenant_id: str = settings.default_tenant
+    name: str
+    action: str = "RETAIN"
+    selector: dict = Field(default_factory=dict)
+    retention_days: int = 0
+    priority: int = 100
+
+
+class GovernanceRunIn(BaseModel):
+    tenant_id: str = settings.default_tenant
+    mode: str = "DRY_RUN"
 
 
 @app.get("/api/v1/overview")
@@ -600,9 +652,115 @@ def materialize(did: str):
     return {"dataset_id": did, "members": len(members)}
 
 
+# ----- Enterprise Beta: HCI-familiar pipelines, indexes, analytics and governance -----
+@app.get("/api/v1/pipelines")
+def pipelines(tenant_id: str = settings.default_tenant):
+    return enterprise.list_pipelines(tenant_id)
+
+
+@app.post("/api/v1/pipelines")
+def create_pipeline(body: PipelineIn):
+    return enterprise.create_pipeline(body.model_dump())
+
+
+@app.post("/api/v1/pipelines/{pipeline_id}/run")
+def run_pipeline(pipeline_id: str):
+    try:
+        run = enterprise.pipeline_run(pipeline_id)
+        group_id = run.get("source_group_id")
+        tenant_id = run["tenant_id"]
+        if not group_id:
+            return enterprise.pipeline_complete(pipeline_id, "COMPLETE", {"note": "No source scope assigned"})
+        metrics = {
+            "discovery": ops.discover(tenant_id, group_id),
+            "indexing": processing.index_source(group_id),
+            "pii": enterprise.scan_pii(tenant_id),
+            "reconciliation": ops.reconcile(tenant_id, group_id, target="ALL", verify_package_members=False),
+        }
+        return enterprise.pipeline_complete(pipeline_id, "COMPLETE", metrics)
+    except KeyError:
+        raise HTTPException(404, "pipeline not found")
+    except Exception as exc:
+        enterprise.pipeline_complete(pipeline_id, "FAILED", {"error": str(exc)})
+        raise HTTPException(400, str(exc))
+
+
+@app.get("/api/v1/indexes")
+def indexes(tenant_id: str = settings.default_tenant):
+    return enterprise.list_indexes(tenant_id)
+
+
+@app.post("/api/v1/indexes")
+def create_index(body: IndexIn):
+    return enterprise.create_index(body.model_dump())
+
+
+@app.post("/api/v1/search/federated")
+def federated_search(body: RoutedSearchIn):
+    return enterprise.routed_search(body.tenant_id, body.query, processing, body.index_ids, max(1, min(body.limit, 100)))
+
+
+@app.get("/api/v1/analytics/overview")
+def analytics_overview(tenant_id: str = settings.default_tenant):
+    return enterprise.analytics(tenant_id)
+
+
+@app.get("/api/v1/pii/rules")
+def pii_rules(tenant_id: str = settings.default_tenant):
+    return enterprise.list_rules(tenant_id)
+
+
+@app.post("/api/v1/pii/rules")
+def create_pii_rule(body: PiiRuleIn):
+    try:
+        return enterprise.create_rule(body.model_dump())
+    except (ValueError, re.error) as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.post("/api/v1/pii/scan")
+def run_pii_scan(tenant_id: str = settings.default_tenant):
+    return enterprise.scan_pii(tenant_id)
+
+
+@app.get("/api/v1/pii/findings")
+def pii_findings(tenant_id: str = settings.default_tenant):
+    return enterprise.pii_findings(tenant_id)
+
+
+@app.get("/api/v1/governance/policies")
+def governance_policies(tenant_id: str = settings.default_tenant):
+    return enterprise.list_policies(tenant_id)
+
+
+@app.post("/api/v1/governance/policies")
+def create_governance_policy(body: GovernancePolicyIn):
+    return enterprise.create_policy(body.model_dump())
+
+
+@app.post("/api/v1/governance/evaluate")
+def evaluate_governance(body: GovernanceRunIn):
+    try:
+        return enterprise.evaluate_governance(body.tenant_id, body.mode)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc))
+
+
+@app.get("/api/v1/governance/actions")
+def governance_actions(tenant_id: str = settings.default_tenant):
+    return enterprise.governance_actions(tenant_id)
+
+
+@app.get("/api/v1/monitoring")
+def monitoring(tenant_id: str = settings.default_tenant):
+    return enterprise.monitoring(tenant_id)
+
+
 
 def seed_demo():
     if int(db.scalar("SELECT COUNT(*) c FROM storage_systems", (), 0) or 0) > 0:
+        groups = db.fetchall("SELECT id FROM catalogue_groups WHERE tenant_id=?", (settings.default_tenant,))
+        enterprise.seed_defaults(settings.default_tenant, [g["id"] for g in groups])
         return
     base = Path(settings.data_root)
     primary_root = base / "primary"
@@ -621,3 +779,4 @@ def seed_demo():
     lg = catalog.create_catalogue_group(tenant=settings.default_tenant, storage_id=lstore["id"], container_name=".", container_type="DIRECTORY", name="Demo Legacy", physical_shards=4)
     ops.discover(settings.default_tenant, lg["id"])
     processing.index_source(lg["id"])
+    enterprise.seed_defaults(settings.default_tenant, [pg["id"], lg["id"]])

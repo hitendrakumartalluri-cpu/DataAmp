@@ -17,15 +17,15 @@ Active umbrella issue: [AMP-CORE-EPIC-001 — #25](https://github.com/hitendraku
 | AMP-IDX-004 | Dependency-aware selective reprocessing | Next | Approved design |
 | AMP-REC-001 | Storage reconciliation | Beta | Verified in lab |
 | AMP-REC-002 | Source-to-index completeness and freshness | Next | Approved design |
-| AMP-SRCH-001 | Schema catalogue and field mappings | Next | Approved design |
-| AMP-SRCH-002 | Intelligent heterogeneous query router | Next | Approved design |
-| AMP-SRCH-003 | Result normalization, deduplication and consolidation | Next | Approved design |
-| AMP-ANA-001 | Configurable Solr facet/statistics dashboards | Later | Approved direction |
-| AMP-ANA-002 | Duplicate-object analytics | Later | Approved direction |
-| AMP-GOV-001 | Retention and hold policy dry-run | Later | Approved design |
+| AMP-SRCH-001 | Schema catalogue and field mappings | Beta | Implemented simulator |
+| AMP-SRCH-002 | Intelligent heterogeneous query router | Beta | Implemented simulator |
+| AMP-SRCH-003 | Result normalization, deduplication and consolidation | Beta | Implemented simulator |
+| AMP-ANA-001 | Configurable facet/statistics dashboards | Beta | Implemented simulator |
+| AMP-ANA-002 | Duplicate-object analytics | Beta | Implemented simulator |
+| AMP-GOV-001 | Retention and hold policy dry-run | Beta | Implemented |
 | AMP-GOV-002 | Native lock/hold apply and verification | Later | Approved design |
-| AMP-GOV-003 | Field-scoped user regex PII scanning | Later | Approved direction |
-| AMP-GOV-004 | Sensitive-object marking and evidence | Later | Approved direction |
+| AMP-GOV-003 | Field-scoped user regex PII scanning | Beta | Implemented |
+| AMP-GOV-004 | Sensitive-object marking and evidence | Beta | Implemented |
 
 ## Retired scope
 
