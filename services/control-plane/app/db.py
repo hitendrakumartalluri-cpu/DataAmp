@@ -157,19 +157,6 @@ class Database:
         );
 
 
-        CREATE TABLE IF NOT EXISTS gateway_routes (
-          id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, namespace TEXT NOT NULL,
-          catalogue_group_id TEXT NOT NULL REFERENCES catalogue_groups(id) ON DELETE CASCADE,
-          object_prefix TEXT NOT NULL DEFAULT '', state TEXT NOT NULL DEFAULT 'ACTIVE',
-          response_mode TEXT NOT NULL DEFAULT 'AMP_NORMALIZED',
-          backend_header_policy TEXT NOT NULL DEFAULT 'SELECTED',
-          add_amp_request_id INTEGER NOT NULL DEFAULT 1,
-          capture_backend_response INTEGER NOT NULL DEFAULT 1,
-          max_captured_error_body_bytes INTEGER NOT NULL DEFAULT 65536,
-          created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
-          UNIQUE(tenant_id, namespace)
-        );
-
         CREATE TABLE IF NOT EXISTS object_annotations (
           id TEXT PRIMARY KEY, catalogue_object_id TEXT NOT NULL REFERENCES catalogue_objects(id) ON DELETE CASCADE,
           annotation_name TEXT NOT NULL, sidecar_key TEXT NOT NULL, content_type TEXT NOT NULL,
@@ -200,14 +187,6 @@ class Database:
           payload_native_version_id TEXT NOT NULL, annotation_name TEXT NOT NULL, annotation_native_version_id TEXT NOT NULL DEFAULT '',
           linked_at TEXT NOT NULL,
           UNIQUE(catalogue_object_id, payload_native_version_id, annotation_name)
-        );
-
-        CREATE TABLE IF NOT EXISTS backend_transactions (
-          id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, gateway_route_id TEXT, catalogue_group_id TEXT,
-          object_id TEXT, request_id TEXT, protocol TEXT NOT NULL, operation TEXT NOT NULL, logical_key TEXT,
-          backend_kind TEXT, backend_status INTEGER, backend_code TEXT, outcome TEXT NOT NULL,
-          response_headers_json TEXT NOT NULL DEFAULT '{}', raw_response_json TEXT NOT NULL DEFAULT '{}',
-          error_body TEXT, created_at TEXT NOT NULL
         );
 
         CREATE TABLE IF NOT EXISTS reconciliation_results (
@@ -315,7 +294,6 @@ class Database:
         CREATE INDEX IF NOT EXISTS idx_schedules_due ON catalogue_schedules(enabled, next_run_at);
 
 
-        CREATE INDEX IF NOT EXISTS idx_gateway_routes_tenant ON gateway_routes(tenant_id, state, namespace);
         CREATE INDEX IF NOT EXISTS idx_annotations_object ON object_annotations(catalogue_object_id, state, annotation_name);
         CREATE INDEX IF NOT EXISTS idx_version_annotation_links ON object_version_annotation_links(catalogue_object_id,payload_native_version_id,annotation_name);
 

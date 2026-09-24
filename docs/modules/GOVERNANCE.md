@@ -4,19 +4,18 @@
 
 Turns AMP's identity, metadata, search and backend observations into explainable policy decisions and audit evidence.
 
-## Current Beta 5
+## Safety model
 
-- Backend compliance-state observation where supported.
-- Backend-authority rule documented and enforced architecturally.
-- Audit and backend transaction history foundations.
-- Migration/reconciliation evidence foundations.
-- AMP does not enforce WORM, retention or legal hold itself.
+- Solr identifies policy candidates; the connector verifies the current source object before action.
+- Policies support dry-run, approval, immutable versions and explicit conflict resolution.
+- Storage remains the enforcement authority for retention, Object Lock and holds.
+- AMP records action, response, verification and exceptions.
 
 ## Complete-product scope
 
 - Query-time authorization maps with deny precedence.
 - Lifecycle-bound search and retrieval audit history.
-- PII scan policies and protected results.
+- Versioned user regex tables with field scope, validation, time limits and protected match evidence.
 - Rule-based retention and case-based legal hold.
 - Native backend action/verification adapters.
 - Compliance evidence packs and chain of custody.
@@ -26,6 +25,6 @@ Turns AMP's identity, metadata, search and backend observations into explainable
 
 ## Boundaries
 
-Solr may discover candidates but cannot be final compliance authority. PostgreSQL records policy state and evidence; the storage backend enforces native controls.
+Solr may discover candidates but cannot be final compliance authority. PostgreSQL records policy state and evidence; the storage backend enforces native controls. Regex detection is not a guarantee of complete PII discovery and must report rule coverage and scan failures.
 
 Tracking: [authorization #18](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/18), [audit #21](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/21), [retention/hold #22](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/22).

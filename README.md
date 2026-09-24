@@ -1,36 +1,38 @@
 # DataAmp — Archive Modernization Platform
 
-DataAmp (AMP) is an enterprise object-data control plane for protocol compatibility, catalogue assurance, migration, reconciliation, search preparation, and AI readiness.
+AMP is an enterprise indexing, search, analytics and governance-assurance platform for existing object storage.
 
-The frozen Beta 5 reference is **0.9.0-beta.5.0.6**. Active development on `main` is **0.9.0-beta.6.0-dev.1**, beginning with the reconciliation assurance plane. Beta 5 passed the clean-lab full cumulative functional gate on 2026-09-22; neither line is production-certified.
+AMP connects to AWS S3, Azure Blob Storage, Hitachi Content Platform (HCP) and VSP One Object. It inventories objects, extracts full text, indexes native metadata and tags, provides federated search across heterogeneous Solr indexes, and drives explainable retention and hold workflows through native storage APIs.
+
+AMP is **not** a storage gateway and does not replace the client-facing S3, Azure or HCP APIs.
+
+## Active product planes
+
+- Storage connectors and continuous change capture.
+- Full-text, metadata and tag indexing through Apache Hop, Tika and Solr.
+- Source-to-index reconciliation and repair evidence.
+- Intelligent query routing and heterogeneous result consolidation.
+- Configurable analytics using Solr facets and statistics.
+- User-defined regex PII scanning and sensitivity marking.
+- Rule-based retention, Object Lock and legal-hold orchestration with native verification.
 
 ## Start here
 
 - [Current status](PROJECT_STATUS.md)
-- [Frozen Beta 5.0.6 baseline](docs/releases/BETA_5_0_6_FREEZE.md)
 - [Roadmap](ROADMAP.md)
 - [Product vision](docs/PRODUCT_VISION.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Feature tracker](docs/features/FEATURE_TRACKER.md)
-- [Architecture decisions](docs/adr/README.md)
-- [Lab environment](lab/README.md)
-- [Contribution and governance](CONTRIBUTING.md)
-- [Product and Architecture Wiki](https://github.com/hitendrakumartalluri-cpu/DataAmp/wiki) — current and complete-product capabilities, architecture and ADRs
+- [Gateway retirement archive](docs/archive/GATEWAY_BETA_ARCHIVE.md)
+- [Product Wiki](https://github.com/hitendrakumartalluri-cpu/DataAmp/wiki)
 
 ## Repository boundaries
 
 | Area | Purpose |
 |---|---|
-| `services/` | Product implementation |
-| `deployments/` | Product deployment packaging |
-| `docs/` | Canonical product, feature, architecture, API, and decision documentation |
-| `lab/` | Lab-only topology, scripts, manifests, credentials, and acceptance instructions |
-| `archive/` | Superseded material retained for history |
+| `services/` | Active connector, catalogue, indexing, search and assurance implementation |
+| `docs/` | Canonical product and architecture documentation |
+| `lab/` | Simulator, integration and acceptance environment |
+| `archive/` | Superseded non-runtime material |
 
-GitHub is the canonical source. Chat discussions are working material until captured here in a feature, ADR, status update, test, or code change.
-
-The Wiki is automatically generated from canonical architecture and feature definitions in this repository. Project status, lab instructions and test execution records remain repository-only. Direct Wiki edits are overwritten by the next documentation sync.
-
-## Core architectural boundary
-
-The AMP Catalogue is for administration, evidence, migration, and reconciliation. It is not the end-user search index. Production indexing reads storage directly through Apache Hop and writes to Solr/AI systems using AMP's deterministic identity contract.
+The complete gateway implementation and its tests are preserved on branch [`archive/gateway-beta-2026-09-24`](https://github.com/hitendrakumartalluri-cpu/DataAmp/tree/archive/gateway-beta-2026-09-24).

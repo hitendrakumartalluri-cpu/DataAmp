@@ -14,7 +14,7 @@ This Wiki is the product and architecture guide for AMP.
 
 Use it to understand:
 
-- what AMP contains in the current Beta 5 implementation;
+- what AMP contains in the connector/indexing implementation;
 - how the platform is architected;
 - which boundaries and design decisions are locked;
 - what capabilities are planned for the complete enterprise product.
@@ -45,11 +45,9 @@ cp "$repo_root/docs/features/FEATURE_TRACKER.md" "$wiki_dir/Feature-Tracker.md"
 cp "$repo_root/docs/decision-records/DECISION_MATRIX.md" "$wiki_dir/Decision-Matrix.md"
 
 cp "$repo_root/docs/modules/README.md" "$wiki_dir/Modules.md"
-cp "$repo_root/docs/modules/GATEWAY.md" "$wiki_dir/Module-Gateway.md"
-cp "$repo_root/docs/modules/MANAGED_OBJECTS.md" "$wiki_dir/Module-Managed-Objects.md"
+cp "$repo_root/docs/modules/CONNECTORS.md" "$wiki_dir/Module-Connectors.md"
 cp "$repo_root/docs/modules/CATALOGUE.md" "$wiki_dir/Module-Catalogue.md"
 cp "$repo_root/docs/modules/CHANGE_CAPTURE.md" "$wiki_dir/Module-Change-Capture.md"
-cp "$repo_root/docs/modules/MIGRATION.md" "$wiki_dir/Module-Migration.md"
 cp "$repo_root/docs/modules/RECONCILIATION.md" "$wiki_dir/Module-Reconciliation.md"
 cp "$repo_root/docs/modules/INDEXING_HOP.md" "$wiki_dir/Module-Indexing-Hop.md"
 cp "$repo_root/docs/modules/SEARCH_AI.md" "$wiki_dir/Module-Search-AI.md"
@@ -59,10 +57,8 @@ cp "$repo_root/docs/modules/PLATFORM_OPERATIONS.md" "$wiki_dir/Module-Platform-O
 cp "$repo_root/docs/reference/BACKEND_AUTHORITY.md" "$wiki_dir/Backend-Authority.md"
 cp "$repo_root/docs/reference/CATALOGUE_SHARDING.md" "$wiki_dir/Catalogue-Sharding.md"
 cp "$repo_root/docs/reference/CHANGE_CAPTURE.md" "$wiki_dir/Change-Capture.md"
-cp "$repo_root/docs/reference/GATEWAY_RESPONSE_POLICY.md" "$wiki_dir/Gateway-Response-Policy.md"
-cp "$repo_root/docs/reference/HCP_REST_COMPATIBILITY.md" "$wiki_dir/HCP-REST-Compatibility.md"
-cp "$repo_root/docs/reference/S3_COMPATIBILITY.md" "$wiki_dir/S3-Compatibility.md"
 cp "$repo_root/docs/reference/SECURITY.md" "$wiki_dir/Security-Architecture.md"
+cp "$repo_root/docs/archive/GATEWAY_BETA_ARCHIVE.md" "$wiki_dir/Archive-Gateway-Beta.md"
 
 for adr in "$repo_root"/docs/adr/ADR-*.md; do
   cp "$adr" "$wiki_dir/$(basename "$adr")"
@@ -80,14 +76,12 @@ cat > "$wiki_dir/_Sidebar.md" <<'EOF'
 ## Modules
 
 - [Module overview](Modules)
-- [Gateway](Module-Gateway)
-- [Managed objects and annotations](Module-Managed-Objects)
+- [Storage connectors](Module-Connectors)
 - [Catalogue](Module-Catalogue)
 - [Change capture](Module-Change-Capture)
-- [Migration and hydration](Module-Migration)
 - [Reconciliation](Module-Reconciliation)
 - [Indexing and Apache Hop](Module-Indexing-Hop)
-- [Search, analytics and AI](Module-Search-AI)
+- [Search and analytics](Module-Search-AI)
 - [Governance and compliance](Module-Governance)
 - [Platform operations](Module-Platform-Operations)
 
@@ -98,11 +92,9 @@ cat > "$wiki_dir/_Sidebar.md" <<'EOF'
 - [Backend authority](Backend-Authority)
 - [Catalogue sharding](Catalogue-Sharding)
 - [Change capture](Change-Capture)
-- [Gateway response policy](Gateway-Response-Policy)
-- [HCP REST compatibility](HCP-REST-Compatibility)
-- [S3 compatibility](S3-Compatibility)
 - [Security architecture](Security-Architecture)
 - [Open decision matrix](Decision-Matrix)
+- [Archived Gateway Beta](Archive-Gateway-Beta)
 
 ## Architecture decisions
 
@@ -110,12 +102,10 @@ cat > "$wiki_dir/_Sidebar.md" <<'EOF'
 - [ADR-0002: Catalogue sharding](ADR-0002-catalogue-sharding)
 - [ADR-0003: Backend authority](ADR-0003-backend-authority)
 - [ADR-0004: Search-plane separation](ADR-0004-search-plane-separation)
-- [ADR-0005: Object identity and package](ADR-0005-object-identity-and-package)
-- [ADR-0006: Migration registration](ADR-0006-migration-registration)
-- [ADR-0007: Gateway response policy](ADR-0007-gateway-response-policy)
 - [ADR-0008: Change capture](ADR-0008-change-capture)
 - [ADR-0009: Repository governance](ADR-0009-repository-governance)
 - [ADR-0010: Beta 5 authentication](ADR-0010-beta5-authentication-boundary)
+- [ADR-0011: Retire client gateway](ADR-0011-retire-client-gateway)
 EOF
 
 cat > "$wiki_dir/_Footer.md" <<'EOF'

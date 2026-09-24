@@ -220,37 +220,6 @@ class EventService:
         # Everything after durable receipt creation is inside the failure boundary so
         # classifier/watermark failures cannot strand a RECEIVED row while Kafka advances.
         try:
-            event_key = str(event.get("object_key") or "")
-            managed_member = event_key.startswith(".amp/") or self.catalog.is_managed_physical_key(group["id"], event_key)
-            if not managed_member:
-                package_root = None
-                manifest_key = None
-                if event_key.endswith("/payload"):
-                    package_root = event_key[:-len("/payload")]
-                    manifest_key = f"{package_root}/manifest.json"
-                elif "/annotations/" in event_key:
-                    package_root = event_key.split("/annotations/", 1)[0]
-                    manifest_key = f"{package_root}/manifest.json"
-                elif event_key.endswith("/manifest.json"):
-                    package_root = event_key[:-len("/manifest.json")]
-                    manifest_key = event_key
-                elif "/.amp/" in event_key:
-                    package_root = event_key.split("/.amp/", 1)[0]
-                    manifest_key = f"{package_root}/.amp/manifest.json"
-                if manifest_key:
-                    try:
-                        backend = backend_from_record(self.catalog.backend_record_for_group(group["id"]))
-                        raw_manifest = backend.get(manifest_key)
-                        manifest = json.loads(raw_manifest.decode("utf-8"))
-                        layout = str(manifest.get("storageLayout") or "")
-                        declared_root = str(manifest.get("packageRoot") or "").rstrip("/")
-                        managed_member = layout in {"AMP_PACKAGE_V1", "AMP_PACKAGE_V2", "AMP_PACKAGE_V3"} and declared_root == str(package_root or "").rstrip("/")
-                    except Exception:
-                        managed_member = False
-            if managed_member:
-                self.db.execute("UPDATE storage_events SET status='IGNORED_SYSTEM',applied_at=? WHERE id=?", (now(), event_id))
-                return {"storage_event_id": event_id, "status": "IGNORED_SYSTEM", "applied": False}
-
             if self._stale_by_sequencer(event):
                 self.db.execute("UPDATE storage_events SET status='IGNORED_STALE',applied_at=? WHERE id=?", (now(), event_id))
                 return {"storage_event_id": event_id, "status": "IGNORED_STALE", "applied": False}

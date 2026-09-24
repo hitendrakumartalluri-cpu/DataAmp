@@ -13,7 +13,6 @@ from ..config import settings
 from ..db import Database
 from .catalog import CatalogService, now, uid
 from .storage import backend_from_record
-from .managed_objects import ManagedObjectService
 
 
 class ProcessingService:
@@ -31,7 +30,7 @@ class ProcessingService:
         self.db = db
         self.catalog = catalog
 
-    def read_catalogue_object(self, oid: str, hydrate_target_group_id: str | None = None) -> tuple[bytes, dict]:
+    def read_catalogue_object(self, oid: str) -> tuple[bytes, dict]:
         obj = self.catalog.get_catalogue_object(oid)
         # A tombstone is an administrative reconciliation record only. Once the source
         # delete has been confirmed, never attempt a source GET for that record.
@@ -42,27 +41,6 @@ class ProcessingService:
         self.catalog.audit(obj["tenant_id"] if "tenant_id" in obj else self.catalog.get_catalogue_group(obj["catalogue_group_id"])["tenant_id"],
                            "OBJECT_READ", group_id=obj["catalogue_group_id"], object_id=oid,
                            recon_id=obj["recon_id"], details={"key": obj["object_key"], "payload_key": self.catalog.payload_key_for(obj)})
-        if hydrate_target_group_id and hydrate_target_group_id != obj["catalogue_group_id"]:
-            target = self.catalog.get_catalogue_group(hydrate_target_group_id)
-            src_backend = backend_from_record(self.catalog.backend_record_for_group(obj["catalogue_group_id"]))
-            annotations: list[dict[str, Any]] = []
-            for ann in obj.get("annotations") or []:
-                if str(ann.get("state") or "ACTIVE").upper() != "ACTIVE":
-                    continue
-                annotations.append({
-                    "name": ann["annotation_name"],
-                    "content_type": ann.get("content_type") or "application/octet-stream",
-                    "data": src_backend.get(str(ann["sidecar_key"])),
-                })
-            managed = ManagedObjectService(self.db, self.catalog)
-            target_obj = managed.put_to_group(
-                hydrate_target_group_id, str(obj["object_key"]), data, obj.get("content_type") or "application/octet-stream",
-                source_mode="HYDRATED", origin_recon_id=str(obj["recon_id"]), annotations=annotations,
-            )
-            self.catalog.audit(target["tenant_id"], "OBJECT_HYDRATE", group_id=hydrate_target_group_id,
-                               object_id=target_obj["id"], recon_id=target_obj["recon_id"],
-                               details={"source_group_id": obj["catalogue_group_id"], "source_recon_id": obj["recon_id"],
-                                        "compliance_authority": "BACKEND"})
         return data, obj
 
     def extract_text(self, data: bytes, content_type: str, name: str) -> tuple[str, dict[str, Any]]:
@@ -110,55 +88,13 @@ class ProcessingService:
         return [round(v / norm, 6) for v in vec]
 
     def index_source(self, group_id: str, prefix: str = "", limit: int = 100_000) -> dict:
-        """Simulate HOP: storage -> extraction -> search/AI stores, without catalogue reads.
-
-        AMP packages are discovered from their storage manifest, so HOP does not
-        need PostgreSQL to derive logical identity or find the payload.
-        """
+        """Simulate connector -> extraction -> search projection without catalogue reads."""
         group = self.catalog.get_catalogue_group(group_id)
         backend = backend_from_record(self.catalog.backend_record_for_group(group_id))
         processed = indexed = 0
         errors: list[dict[str, str]] = []
         native_items = list(backend.list(prefix))
-        if prefix and not prefix.startswith(".amp/"):
-            # Hash-managed V2/V3 package roots are outside the logical prefix.
-            # Include their manifests; client-path V3 packages are already under
-            # the client prefix and are discovered by the native listing.
-            seen = {x.key for x in native_items}
-            native_items.extend(x for x in backend.list(".amp/objects/") if x.key not in seen)
-        package_roots: set[str] = set()
-        work: list[tuple[str, str, str, str]] = []  # logical, payload, version, content-type
-
-        for item in native_items:
-            if not (item.key.endswith("/manifest.json") or item.key.endswith("/.amp/manifest.json")):
-                continue
-            try:
-                manifest = json.loads(backend.get(item.key).decode("utf-8"))
-                layout = str(manifest.get("storageLayout") or "")
-                if layout not in {"AMP_PACKAGE_V1", "AMP_PACKAGE_V2", "AMP_PACKAGE_V3"}:
-                    continue
-                if str(manifest.get("state") or "").upper() == "WRITING":
-                    continue
-                logical = str(manifest.get("logicalPath") or "").strip("/")
-                if prefix and not logical.startswith(prefix):
-                    continue
-                root = str(manifest.get("packageRoot") or logical).strip("/")
-                payload = manifest.get("payload") or {}
-                payload_key = str(payload.get("key") or f"{root}/payload")
-                package_roots.add(root)
-                work.append((logical, payload_key, str(payload.get("versionId") or ""),
-                             str(payload.get("contentType") or "application/octet-stream")))
-            except Exception as exc:
-                errors.append({"key": item.key, "error": str(exc)})
-
-        for item in native_items:
-            if item.key.startswith(".amp/") or item.key.endswith("/.amp/manifest.json"):
-                continue
-            if any(item.key == f"{root}/payload" or item.key == f"{root}/manifest.json"
-                   or item.key.startswith(f"{root}/annotations/") or item.key.startswith(f"{root}/.amp/")
-                   for root in package_roots):
-                continue
-            work.append((item.key, item.key, item.version_id or "", item.content_type))
+        work = [(item.key, item.key, item.version_id or "", item.content_type) for item in native_items]
 
         for logical_key, payload_key, version_id, content_type in work:
             if processed >= limit:

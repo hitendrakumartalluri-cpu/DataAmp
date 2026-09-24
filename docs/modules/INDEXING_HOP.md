@@ -2,29 +2,28 @@
 
 ## Responsibility
 
-Builds the storage-direct content processing path from authoritative object storage into Solr and AI indexes.
+Builds connector-driven content processing from authoritative object storage into Solr metadata and full-text indexes.
 
 ## Locked architecture
 
 ```text
-Object storage -> Apache Hop -> Tika/enrichment
-               -> transformation/chunking -> Solr/AI indexes
+Native connector -> Apache Hop -> Tika/enrichment
+                 -> metadata/tag normalization -> Solr indexes
 ```
 
-Hop does not read `catalogue_objects`. Hop and AMP independently derive the same reconciliation identity; AMP later compares catalogue truth with downstream index state.
+Every projection records source identity, native version, content hash where available, pipeline version and index attempt state. AMP uses these fields to prove completeness and freshness.
 
-## Current Beta 5
+## Current foundation
 
 - Storage-direct Hop contract.
-- Package-manifest reconstruction contract.
 - Tika extraction and local pipeline simulator.
-- Local search/embedding simulator.
-- Index and AI reconciliation beta flows.
+- Local search projection simulator.
+- Storage and index reconciliation flows.
 - Production Hop-to-Solr delivery is not implemented.
 
 ## Complete-product scope
 
-Production Hop pipelines, 5,000 documents/second evidence, durable indexing ledger/retry, metadata/full-text split, schema evolution, canonical conversion, dynamic collection wizard, index rollover/routing and large-estate reconciliation.
+Production Hop pipelines, durable indexing ledger/retry, dependency-aware selective reprocessing, workload lanes, metadata/full-text split, schema evolution, canonical conversion, dynamic collection wizard, index rollover/routing and large-estate reconciliation.
 
 ## Primary locations
 

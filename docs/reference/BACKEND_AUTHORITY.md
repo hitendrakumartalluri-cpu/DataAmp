@@ -60,6 +60,6 @@ AMP must never emulate a regulatory feature in PostgreSQL when the target storag
 
 ## Error/outcome authority
 
-Once an operation reaches the backend, the backend decides the outcome. AMP may change the wire representation according to Gateway Response Policy, but it does not change the fundamental HTTP outcome.
+The backend decides whether a retention, lock, hold or lifecycle action is accepted. AMP records the native response and verifies resulting state; it never converts a failed native action into a successful compliance outcome.
 
 Example: backend returns 409 because an overwrite is prohibited. AMP returns HTTP 409 in every response mode. RAW mode preserves backend semantics; normalized mode gives an AMP generic error such as `HTTP_STATUS_409`.

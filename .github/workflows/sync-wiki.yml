@@ -1,0 +1,45 @@
+name: Sync architecture wiki
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - docs/**
+      - scripts/build-wiki.sh
+      - .github/workflows/sync-wiki.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build generated wiki
+        run: ./scripts/build-wiki.sh "$RUNNER_TEMP/wiki-build"
+
+      - name: Preserve Gateway Beta wiki and publish active wiki
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          wiki="$RUNNER_TEMP/wiki"
+          remote="https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.wiki.git"
+          git clone "$remote" "$wiki"
+          git -C "$wiki" config user.name "github-actions[bot]"
+          git -C "$wiki" config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git -C "$wiki" ls-remote --exit-code --heads origin archive/gateway-beta-2026-09-24 >/dev/null 2>&1; then
+            git -C "$wiki" branch archive/gateway-beta-2026-09-24
+            git -C "$wiki" push origin archive/gateway-beta-2026-09-24
+          fi
+          git -C "$wiki" rm -q -- '*.md'
+          cp "$RUNNER_TEMP/wiki-build"/*.md "$wiki"/
+          git -C "$wiki" add --all
+          if git -C "$wiki" diff --cached --quiet; then
+            exit 0
+          fi
+          git -C "$wiki" commit -m "docs: sync active AMP architecture"
+          git -C "$wiki" push origin HEAD:master

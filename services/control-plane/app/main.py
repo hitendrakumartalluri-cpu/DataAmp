@@ -3,7 +3,7 @@ import os
 import uuid
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Form
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -11,14 +11,11 @@ from pydantic import BaseModel, Field
 from .config import settings
 from .db import Database
 from .services.catalog import CatalogService, now, uid
-from .services.storage import backend_from_record, BackendOperationError
+from .services.storage import backend_from_record
 from .services.processing import ProcessingService
 from .services.operations import OperationsService
 from .services.events import EventService
 from .services.scheduler import ScheduleService
-from .services.hcp_gateway import HCPGatewayService
-from .services.s3_gateway import S3GatewayService, S3AuthError
-from .services.gateway_response import filter_headers, sanitize_success_headers, sanitize_error_headers, normalized_error, normalized_s3_error_xml, raw_error_body
 
 app = FastAPI(title="AMP Enterprise Beta API", version=settings.version, docs_url="/docs", redoc_url="/redoc")
 db = Database(settings.database_url)
@@ -27,8 +24,6 @@ processing = ProcessingService(db, catalog)
 ops = OperationsService(db, catalog)
 events = EventService(db, catalog)
 schedules = ScheduleService(db, catalog, ops)
-hcp_gateway = HCPGatewayService(db, catalog)
-s3_gateway = S3GatewayService(db, catalog)
 STATIC = Path(__file__).resolve().parent / "static"
 app.mount("/static", StaticFiles(directory=STATIC), name="static")
 
@@ -96,17 +91,6 @@ class CatalogueIn(BaseModel):
     container_name: str
     virtual_shards: int = 1024
     physical_shards: int = 1
-    package_placement_mode: str = "AMP_MANAGED_HASH"
-    package_root_prefix: str = ".amp/objects"
-    package_hash_levels: int = 2
-    package_hash_segment_chars: int = 2
-
-
-class PackageLayoutIn(BaseModel):
-    mode: str = "AMP_MANAGED_HASH"
-    root_prefix: str = ".amp/objects"
-    hash_levels: int = 2
-    hash_segment_chars: int = 2
 
 
 class CatalogueStateIn(BaseModel):
@@ -118,14 +102,6 @@ class DiscoverIn(BaseModel):
     catalogue_group_id: str
     prefix: str = ""
     auto_index: bool = False
-
-
-class MigrationIn(BaseModel):
-    tenant_id: str = settings.default_tenant
-    source_group_id: str
-    target_group_id: str
-    prefix: str = ""
-    dry_run: bool = False
 
 
 class ReconcileIn(BaseModel):
@@ -190,18 +166,6 @@ class ScheduleIn(BaseModel):
     next_run_at: str | None = None
 
 
-class GatewayRouteIn(BaseModel):
-    tenant_id: str = settings.default_tenant
-    namespace: str
-    catalogue_group_id: str
-    object_prefix: str = ""
-    response_mode: str = "AMP_NORMALIZED"
-    backend_header_policy: str = "SELECTED"
-    add_amp_request_id: bool = True
-    capture_backend_response: bool = True
-    max_captured_error_body_bytes: int = 65536
-
-
 @app.get("/api/v1/overview")
 def overview(tenant_id: str = settings.default_tenant):
     groups = int(db.scalar("SELECT COUNT(*) c FROM catalogue_groups WHERE tenant_id=?", (tenant_id,), 0) or 0)
@@ -249,9 +213,7 @@ def create_catalogue_group(body: CatalogueIn):
         return catalog.create_catalogue_group(
             tenant=body.tenant_id, storage_id=body.storage_id, container_name=body.container_name,
             container_type=body.container_type, name=body.name, virtual_shards=body.virtual_shards,
-            physical_shards=body.physical_shards, package_placement_mode=body.package_placement_mode,
-            package_root_prefix=body.package_root_prefix, package_hash_levels=body.package_hash_levels,
-            package_hash_segment_chars=body.package_hash_segment_chars,
+            physical_shards=body.physical_shards,
         )
     except KeyError:
         raise HTTPException(404, "storage system not found")
@@ -263,35 +225,6 @@ def catalogue_group(gid: str):
         return catalog.get_catalogue_group(gid)
     except KeyError:
         raise HTTPException(404, "catalogue group not found")
-
-
-@app.get("/api/v1/catalogue-groups/{gid}/package-layout")
-def catalogue_package_layout(gid: str):
-    try:
-        g = catalog.get_catalogue_group(gid)
-        return {
-            "catalogue_group_id": str(g["id"]),
-            "mode": g.get("package_placement_mode") or "AMP_MANAGED_HASH",
-            "root_prefix": g.get("package_root_prefix") or ".amp/objects",
-            "hash_levels": int(g.get("package_hash_levels") or 2),
-            "hash_segment_chars": int(g.get("package_hash_segment_chars") or 2),
-            "applies_to": "FUTURE_MANAGED_WRITES",
-        }
-    except KeyError:
-        raise HTTPException(404, "catalogue group not found")
-
-
-@app.post("/api/v1/catalogue-groups/{gid}/package-layout")
-def configure_catalogue_package_layout(gid: str, body: PackageLayoutIn):
-    try:
-        return catalog.set_package_layout(
-            gid, mode=body.mode, root_prefix=body.root_prefix,
-            hash_levels=body.hash_levels, hash_segment_chars=body.hash_segment_chars,
-        )
-    except KeyError:
-        raise HTTPException(404, "catalogue group not found")
-    except ValueError as exc:
-        raise HTTPException(400, str(exc))
 
 
 @app.post("/api/v1/catalogue-groups/{gid}/state")
@@ -311,33 +244,6 @@ def catalogue_shards(gid: str):
         return catalog.list_shards(gid)
     except KeyError:
         raise HTTPException(404, "catalogue group not found")
-
-
-# ----- Gateway namespace routing / HCP REST compatibility -----
-@app.get("/api/v1/gateway-routes")
-def gateway_routes(tenant_id: str = settings.default_tenant):
-    return catalog.list_gateway_routes(tenant_id)
-
-
-@app.post("/api/v1/gateway-routes")
-def configure_gateway_route(body: GatewayRouteIn):
-    try:
-        return catalog.configure_gateway_route(
-            tenant=body.tenant_id, namespace=body.namespace,
-            catalogue_group_id=body.catalogue_group_id, object_prefix=body.object_prefix,
-            response_mode=body.response_mode, backend_header_policy=body.backend_header_policy,
-            add_amp_request_id=body.add_amp_request_id, capture_backend_response=body.capture_backend_response,
-            max_captured_error_body_bytes=body.max_captured_error_body_bytes,
-        )
-    except KeyError:
-        raise HTTPException(404, "catalogue group not found")
-    except ValueError as exc:
-        raise HTTPException(400, str(exc))
-
-
-@app.get("/api/v1/backend-transactions")
-def backend_transactions(tenant_id: str = settings.default_tenant, limit: int = 100):
-    return catalog.list_backend_transactions(tenant_id, limit)
 
 
 @app.get("/api/v1/catalogue-objects/{oid}/versions")
@@ -380,27 +286,8 @@ def catalogue_object_annotations(oid: str):
         raise HTTPException(404, "catalogue object not found")
 
 
-@app.post("/api/v1/catalogue-objects/upload")
-async def upload(catalogue_group_id: str = Form(...), object_key: str = Form(...), file: UploadFile = File(...)):
-    try:
-        group = catalog.get_catalogue_group(catalogue_group_id)
-    except KeyError:
-        raise HTTPException(404, "catalogue group not found")
-    data = await file.read()
-    backend = backend_from_record(catalog.backend_record_for_group(catalogue_group_id))
-    stat = backend.put(object_key, data, file.content_type or "application/octet-stream")
-    obj = catalog.upsert_catalogue_object(
-        group_id=catalogue_group_id, object_key=object_key, version_id=stat.version_id or "",
-        size_bytes=stat.size, etag=stat.etag, checksum=stat.checksum_sha256,
-        content_type=file.content_type or stat.content_type, source_mode="GATEWAY",
-    )
-    catalog.audit(group["tenant_id"], "GATEWAY_WRITE", group_id=catalogue_group_id,
-                  object_id=obj["id"], recon_id=obj["recon_id"], details={"key": object_key})
-    return obj
-
-
 @app.get("/api/v1/catalogue-objects/{oid}/content")
-def content(oid: str, request: Request, hydrate_target_group_id: str | None = None):
+def content(oid: str, request: Request):
     """Stream the authoritative payload from the catalogue group's source storage.
 
     PostgreSQL/psycopg returns UUID columns as ``uuid.UUID`` instances. HTTP header
@@ -410,7 +297,7 @@ def content(oid: str, request: Request, hydrate_target_group_id: str | None = No
     """
     obj = None
     try:
-        data, obj = processing.read_catalogue_object(oid, hydrate_target_group_id)
+        data, obj = processing.read_catalogue_object(oid)
         filename = str(obj.get("logical_name") or obj.get("object_key") or "payload").split("/")[-1]
         safe_filename = filename.replace('"', "'").replace("\r", "").replace("\n", "")
         return Response(
@@ -443,163 +330,7 @@ def content(oid: str, request: Request, hydrate_target_group_id: str | None = No
         raise HTTPException(502, "source storage read failed")
 
 
-def _gateway_policy(tenant: str, namespace: str) -> dict:
-    try:
-        return catalog.get_gateway_route(tenant, namespace)
-    except Exception:
-        return {"id": None, "catalogue_group_id": None, "response_mode": "AMP_NORMALIZED", "backend_header_policy": "SELECTED",
-                "add_amp_request_id": True, "capture_backend_response": True, "max_captured_error_body_bytes": 65536}
-
-
-def _backend_info(obj: dict | None) -> dict:
-    return (obj or {}).get("_backend") or {}
-
-
-def _capture_backend(request: Request, tenant: str, namespace: str, protocol: str, operation: str,
-                     logical_key: str, obj: dict | None = None, err: BackendOperationError | None = None):
-    policy = _gateway_policy(tenant, namespace)
-    if not bool(policy.get("capture_backend_response", True)):
-        return
-    b = _backend_info(obj)
-    raw = err.raw if err else b.get("raw") or {}
-    headers = err.headers if err else b.get("headers") or {}
-    status = err.status if err else b.get("status")
-    code = err.code if err else b.get("code") or ""
-    max_body = int(policy.get("max_captured_error_body_bytes") or 65536)
-    body = (err.body if err else "")[:max_body]
-    group_id = str(policy.get("catalogue_group_id") or (obj or {}).get("catalogue_group_id") or "") or None
-    backend_kind = str((obj or {}).get("storage_kind") or "")
-    if not backend_kind and group_id:
-        try: backend_kind = str(catalog.backend_record_for_group(group_id).get("kind") or "")
-        except Exception: pass
-    catalog.record_backend_transaction(tenant_id=tenant, route_id=str(policy.get("id") or "") or None,
-        group_id=group_id, object_id=str((obj or {}).get("id") or "") or None,
-        request_id=str(getattr(request.state,"request_id","")), protocol=protocol, operation=operation,
-        logical_key=logical_key, backend_kind=backend_kind, backend_status=status, backend_code=code,
-        outcome="FAILED" if err else "SUCCESS", headers=headers, raw_response=raw, error_body=body)
-
-
-def _backend_success_headers(policy: dict, obj: dict | None, extra: dict | None = None) -> dict[str,str]:
-    b = _backend_info(obj); headers = filter_headers(b.get("headers") or {}, str(policy.get("backend_header_policy") or "SELECTED"))
-    if extra: headers.update({str(k):str(v) for k,v in extra.items() if v is not None and str(v)!=""})
-    return headers
-
-
-def _backend_error_response(request: Request, tenant: str, namespace: str, protocol: str, resource: str,
-                            operation: str, exc: BackendOperationError):
-    policy = _gateway_policy(tenant, namespace); rid=str(getattr(request.state,"request_id",""))
-    _capture_backend(request, tenant, namespace, protocol, operation, resource, err=exc)
-    mode=str(policy.get("response_mode") or "AMP_NORMALIZED").upper()
-    headers=sanitize_error_headers(filter_headers(exc.headers, str(policy.get("backend_header_policy") or "SELECTED")))
-    if bool(policy.get("add_amp_request_id", True)): headers["x-amp-request-id"]=rid
-    if mode=="RAW_BACKEND":
-        body,media=raw_error_body(exc, protocol, resource)
-        return Response(content=body,status_code=exc.status,media_type=media,headers=headers)
-    include=mode=="AMP_NORMALIZED_WITH_BACKEND"
-    if protocol.upper()=="S3":
-        return Response(content=normalized_s3_error_xml(exc.status,rid,backend=exc,include_backend=include,resource=resource),
-                        status_code=exc.status,media_type="application/xml",headers=headers)
-    import json as _json
-    return Response(content=_json.dumps(normalized_error(exc.status,rid,backend=exc,include_backend=include)),
-                    status_code=exc.status,media_type="application/json",headers=headers)
-
-
-# ----- HCP REST compatibility subset -----
-@app.api_route("/rest/{tenant}/{namespace}/{object_path:path}", methods=["PUT", "GET", "HEAD", "DELETE"])
-async def hcp_rest(tenant: str, namespace: str, object_path: str, request: Request):
-    qtype = (request.query_params.get("type") or "").lower()
-    annotation_name = request.query_params.get("annotation") or ""
-    version_id = request.query_params.get("versionId") or request.query_params.get("version") or ""
-    is_annotation = qtype == "custom-metadata"
-    policy = _gateway_policy(tenant, namespace)
-
-    def success(obj: dict | None, *, normalized_status: int, content: bytes | None = None,
-                media_type: str | None = None, extra: dict | None = None) -> Response:
-        mode = str(policy.get("response_mode") or "AMP_NORMALIZED").upper()
-        b = _backend_info(obj)
-        status = int(b.get("status") or normalized_status) if mode == "RAW_BACKEND" else normalized_status
-        if mode == "RAW_BACKEND":
-            headers = filter_headers(b.get("headers") or {}, str(policy.get("backend_header_policy") or "SELECTED"))
-        else:
-            headers = _backend_success_headers(policy, obj, extra)
-            if obj:
-                headers.setdefault("x-amp-object-id", str(obj.get("id") or obj.get("object_id") or ""))
-                headers.setdefault("x-amp-recon-id", str(obj.get("recon_id") or ""))
-                if obj.get("catalogue_group_id"): headers.setdefault("x-amp-catalogue", str(obj.get("catalogue_group_id")))
-                native = b.get("native_version_id") or obj.get("version_id")
-                if native: headers.setdefault("x-amp-version-id", str(native))
-                checksum = b.get("checksum_sha256") or obj.get("checksum_sha256")
-                if checksum: headers.setdefault("x-amp-checksum-sha256", str(checksum))
-            if mode == "AMP_NORMALIZED_WITH_BACKEND":
-                headers["x-amp-backend-status"] = str(b.get("status") or "")
-                if b.get("request_id"): headers["x-amp-backend-request-id"] = str(b.get("request_id"))
-        headers = sanitize_success_headers(
-            headers, method=request.method, has_body=content is not None,
-            body_length=len(content) if content is not None else None,
-        )
-        if bool(policy.get("add_amp_request_id", True)):
-            headers["x-amp-request-id"] = str(getattr(request.state,"request_id",""))
-        return Response(content=content, status_code=status, media_type=media_type, headers=headers)
-
-    try:
-        if is_annotation:
-            if not annotation_name:
-                raise HTTPException(400, "annotation query parameter is required for custom-metadata")
-            if request.method == "PUT":
-                data = await request.body()
-                ann = hcp_gateway.put_annotation(tenant, namespace, object_path, annotation_name, data,
-                    request.headers.get("content-type") or "application/octet-stream")
-                _capture_backend(request, tenant, namespace, "HCP_REST", "PUT_ANNOTATION", object_path, ann)
-                return success(ann, normalized_status=201, extra={"x-amp-sidecar-key":ann.get("sidecar_key"),
-                    "x-hcp-annotation":ann.get("annotation_name"),"x-amp-annotation-version":ann.get("annotation_version")})
-            if request.method == "GET":
-                data,obj,ann = hcp_gateway.get_annotation(tenant, namespace, object_path, annotation_name, version_id)
-                ann_for_resp={**obj,**ann,"_backend":ann.get("_backend") or {}}
-                _capture_backend(request, tenant, namespace, "HCP_REST", "GET_ANNOTATION", object_path, ann_for_resp)
-                return success(ann_for_resp, normalized_status=200, content=data, media_type=ann["content_type"],
-                    extra={"x-amp-sidecar-key":ann.get("sidecar_key"),"x-hcp-annotation":ann.get("annotation_name"),
-                           "x-amp-annotation-version":ann.get("annotation_version")})
-            if request.method == "HEAD":
-                obj,ann=hcp_gateway.head_annotation(tenant, namespace, object_path, annotation_name, version_id)
-                return success(obj,normalized_status=200,extra={"content-type":ann.get("content_type"),
-                    "content-length":ann.get("size_bytes"),"x-amp-sidecar-key":ann.get("sidecar_key"),
-                    "x-hcp-annotation":ann.get("annotation_name")})
-            hcp_gateway.delete_annotation(tenant, namespace, object_path, annotation_name)
-            return success(None,normalized_status=204)
-
-        if request.method == "PUT":
-            data=await request.body()
-            obj=hcp_gateway.put_object(tenant, namespace, object_path, data,
-                request.headers.get("content-type") or "application/octet-stream")
-            _capture_backend(request,tenant,namespace,"HCP_REST","PUT",object_path,obj)
-            return success(obj,normalized_status=201,extra={"etag":obj.get("etag")})
-        if request.method == "GET":
-            data,obj=hcp_gateway.get_object(tenant,namespace,object_path,version_id)
-            _capture_backend(request,tenant,namespace,"HCP_REST","GET",object_path,obj)
-            return success(obj,normalized_status=200,content=data,media_type=obj.get("content_type") or "application/octet-stream",
-                           extra={"etag":obj.get("etag")})
-        if request.method == "HEAD":
-            obj,stat=hcp_gateway.head_object(tenant,namespace,object_path,version_id)
-            _capture_backend(request,tenant,namespace,"HCP_REST","HEAD",object_path,obj)
-            return success(obj,normalized_status=200,extra={"content-type":stat.content_type,"content-length":stat.size,"etag":stat.etag})
-        obj=hcp_gateway.delete_object(tenant,namespace,object_path)
-        _capture_backend(request,tenant,namespace,"HCP_REST","DELETE",object_path,obj)
-        return success(obj,normalized_status=204)
-    except BackendOperationError as exc:
-        return _backend_error_response(request,tenant,namespace,"HCP_REST",object_path,request.method,exc)
-    except HTTPException:
-        raise
-    except KeyError:
-        raise HTTPException(404, "HCP namespace route not found")
-    except FileNotFoundError:
-        raise HTTPException(404, "object or annotation not found")
-    except ValueError as exc:
-        raise HTTPException(400, str(exc))
-    except Exception as exc:
-        print(f"[hcp-rest] FAILED {request.method} {tenant}/{namespace}/{object_path}: {type(exc).__name__}: {exc}", flush=True)
-        raise HTTPException(502, "backend storage operation failed")
-
-# ----- Discovery / HOP indexing / migrations -----
+# ----- Connector discovery and indexing -----
 @app.post("/api/v1/discovery/run")
 def discovery(body: DiscoverIn):
     try:
@@ -615,14 +346,6 @@ def discovery(body: DiscoverIn):
 def indexing(catalogue_group_id: str, prefix: str = ""):
     try:
         return processing.index_source(catalogue_group_id, prefix)
-    except Exception as exc:
-        raise HTTPException(400, str(exc))
-
-
-@app.post("/api/v1/migrations")
-def migration(body: MigrationIn):
-    try:
-        return ops.migrate(body.tenant_id, body.source_group_id, body.target_group_id, body.prefix, body.dry_run)
     except Exception as exc:
         raise HTTPException(400, str(exc))
 
@@ -877,134 +600,6 @@ def materialize(did: str):
     return {"dataset_id": did, "members": len(members)}
 
 
-
-# ----- S3-compatible client front door (path-style beta subset) -----
-def _s3_xml_error(code: str, message: str, resource: str, status: int = 400):
-    return Response(content=s3_gateway.error_xml(code, message, resource), status_code=status,
-                    media_type="application/xml")
-
-
-@app.api_route("/{bucket}", methods=["GET", "HEAD"])
-async def s3_bucket(bucket: str, request: Request):
-    # Registered after all AMP-specific routes so /api, /rest, /docs, etc. keep precedence.
-    try:
-        tenant = s3_gateway.verify_sigv4(request, b"")
-        s3_gateway._route(tenant, bucket)  # validates bucket/namespace route
-        if request.method == "HEAD":
-            return Response(status_code=200)
-        prefix = request.query_params.get("prefix") or ""
-        max_keys = int(request.query_params.get("max-keys") or "1000")
-        token = request.query_params.get("continuation-token")
-        delimiter = request.query_params.get("delimiter") or ""
-        body = s3_gateway.list_v2(tenant, bucket, prefix=prefix, max_keys=max_keys,
-                                  continuation_token=token, delimiter=delimiter)
-        return Response(content=body, media_type="application/xml")
-    except S3AuthError as exc:
-        code = str(exc)
-        status = 403 if code not in {"InvalidAccessKeyId"} else 403
-        return _s3_xml_error(code, code, f"/{bucket}", status)
-    except KeyError:
-        return _s3_xml_error("NoSuchBucket", "The specified bucket does not exist", f"/{bucket}", 404)
-    except ValueError as exc:
-        return _s3_xml_error("InvalidArgument", str(exc), f"/{bucket}", 400)
-
-
-@app.api_route("/{bucket}/{object_path:path}", methods=["PUT", "GET", "HEAD", "DELETE"])
-async def s3_object(bucket: str, object_path: str, request: Request):
-    resource=f"/{bucket}/{object_path}"
-    tenant=settings.default_tenant
-    try:
-        body=await request.body() if request.method=="PUT" else b""
-        tenant=s3_gateway.verify_sigv4(request,body)
-        policy=_gateway_policy(tenant,bucket)
-        version_id=request.query_params.get("versionId") or ""
-
-        def success(obj: dict | None, *, normalized_status: int, content: bytes | None=None,
-                    media_type: str | None=None, extra: dict | None=None) -> Response:
-            mode=str(policy.get("response_mode") or "AMP_NORMALIZED").upper(); b=_backend_info(obj)
-            status=int(b.get("status") or normalized_status) if mode=="RAW_BACKEND" else normalized_status
-            if normalized_status == 206:
-                status = 206
-            if mode=="RAW_BACKEND":
-                headers=filter_headers(b.get("headers") or {},str(policy.get("backend_header_policy") or "SELECTED"))
-                # When AMP transforms a representation (for example Range GET),
-                # generated protocol headers must describe the bytes emitted by AMP.
-                if extra:
-                    headers.update({str(k):str(v) for k,v in extra.items() if v is not None and str(v)!=""})
-            else:
-                headers=_backend_success_headers(policy,obj,extra)
-                if obj:
-                    etag=obj.get("etag") or b.get("etag")
-                    if etag: headers.setdefault("etag",f'"{str(etag).strip(chr(34))}"')
-                    native=b.get("native_version_id") or obj.get("version_id")
-                    if native: headers.setdefault("x-amz-version-id",str(native))
-                    checksum=b.get("checksum_sha256") or obj.get("checksum_sha256")
-                    # AMP catalogue SHA-256 may be hexadecimal; do not advertise it as a
-                    # native S3 checksum header with different wire semantics.
-                    if checksum: headers.setdefault("x-amp-checksum-sha256",str(checksum))
-                    headers.setdefault("x-amp-object-id",str(obj.get("id") or "")); headers.setdefault("x-amp-recon-id",str(obj.get("recon_id") or ""))
-                if mode=="AMP_NORMALIZED_WITH_BACKEND":
-                    headers["x-amp-backend-status"]=str(b.get("status") or "")
-                    if b.get("request_id"): headers["x-amp-backend-request-id"]=str(b.get("request_id"))
-            headers=sanitize_success_headers(
-                headers, method=request.method, has_body=content is not None,
-                body_length=len(content) if content is not None else None,
-            )
-            if bool(policy.get("add_amp_request_id",True)): headers["x-amp-request-id"]=str(getattr(request.state,"request_id",""))
-            return Response(content=content,status_code=status,media_type=media_type,headers=headers)
-
-        if "tagging" in request.query_params and request.method=="GET":
-            _,obj=s3_gateway.get(tenant,bucket,object_path,version_id)
-            tags=s3_gateway.user_tags(obj)
-            tag_xml="".join(f"<Tag><Key>{__import__('html').escape(k)}</Key><Value>{__import__('html').escape(v)}</Value></Tag>" for k,v in sorted(tags.items()))
-            return Response(content=('<?xml version="1.0" encoding="UTF-8"?>' + '<Tagging xmlns="http://s3.amazonaws.com/doc/2006-03-01/">' + f'<TagSet>{tag_xml}</TagSet></Tagging>'),media_type="application/xml")
-
-        if request.method=="PUT":
-            metadata={k[11:].lower():v for k,v in request.headers.items() if k.lower().startswith("x-amz-meta-")}
-            from urllib.parse import parse_qsl
-            tags=dict(parse_qsl(request.headers.get("x-amz-tagging",""),keep_blank_values=True))
-            obj=s3_gateway.put(tenant,bucket,object_path,body,request.headers.get("content-type") or "application/octet-stream",metadata,tags)
-            _capture_backend(request,tenant,bucket,"S3","PUT",object_path,obj)
-            return success(obj,normalized_status=200)
-
-        if request.method=="GET":
-            data,obj=s3_gateway.get(tenant,bucket,object_path,version_id)
-            _capture_backend(request,tenant,bucket,"S3","GET",object_path,obj)
-            metadata=s3_gateway.user_metadata(obj); headers={f"x-amz-meta-{k}":v for k,v in metadata.items()}; headers["accept-ranges"]="bytes"
-            range_header=request.headers.get("range"); status=200; content=data
-            if range_header and range_header.startswith("bytes="):
-                spec=range_header[6:].split(",",1)[0]; start_s,end_s=spec.split("-",1)
-                if start_s=="": length=int(end_s); start,end=max(0,len(data)-length),len(data)-1
-                else: start=int(start_s); end=int(end_s) if end_s else len(data)-1
-                if start>=len(data) or start<0 or end<start:
-                    return _s3_xml_error("InvalidRange","The requested range is not satisfiable",resource,416)
-                end=min(end,len(data)-1); content=data[start:end+1]; headers["content-range"]=f"bytes {start}-{end}/{len(data)}"; status=206
-            return success(obj,normalized_status=status,content=content,media_type=obj.get("content_type") or "application/octet-stream",extra=headers)
-
-        if request.method=="HEAD":
-            obj,stat=s3_gateway.head(tenant,bucket,object_path,version_id)
-            _capture_backend(request,tenant,bucket,"S3","HEAD",object_path,obj)
-            metadata=s3_gateway.user_metadata(obj); headers={"content-type":stat.content_type,"content-length":stat.size,"accept-ranges":"bytes"}
-            headers.update({f"x-amz-meta-{k}":v for k,v in metadata.items()})
-            return success(obj,normalized_status=200,extra=headers)
-
-        obj=s3_gateway.delete(tenant,bucket,object_path)
-        if obj: _capture_backend(request,tenant,bucket,"S3","DELETE",object_path,obj)
-        return success(obj,normalized_status=204)
-
-    except BackendOperationError as exc:
-        return _backend_error_response(request,tenant,bucket,"S3",resource,request.method,exc)
-    except S3AuthError as exc:
-        code=str(exc); return _s3_xml_error(code,code,resource,403)
-    except KeyError:
-        return _s3_xml_error("NoSuchBucket","The specified bucket does not exist",resource,404)
-    except FileNotFoundError:
-        return _s3_xml_error("NoSuchKey","The specified key does not exist",resource,404)
-    except ValueError as exc:
-        return _s3_xml_error("InvalidArgument",str(exc),resource,400)
-    except Exception as exc:
-        print(f"[s3] FAILED {request.method} {resource}: {type(exc).__name__}: {exc}",flush=True)
-        return _s3_xml_error("InternalError","We encountered an internal error",resource,500)
 
 def seed_demo():
     if int(db.scalar("SELECT COUNT(*) c FROM storage_systems", (), 0) or 0) > 0:

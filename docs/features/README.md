@@ -4,5 +4,4 @@
 
 Status vocabulary: `Proposed`, `Approved`, `In Progress`, `Blocked`, `Implemented`, `Verified`, `Deferred`, `Rejected`.
 
-Capability prefixes: `GW` gateway, `PKG` packages, `CAT` catalogue, `EVT` events, `MIG` migration, `REC` reconciliation, `IDX` indexing/search, `GOV` governance, `AI` AI readiness, `UI` interface, `OPS` operations.
-
+Capability prefixes: `CON` connectors, `CAT` catalogue, `EVT` events, `REC` reconciliation, `IDX` indexing, `SRCH` search, `ANA` analytics, `GOV` governance, `UI` interface, and `OPS` operations.

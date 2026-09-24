@@ -1,37 +1,37 @@
-# Roadmap
+# AMP Roadmap
 
-Roadmap ordering describes intent, not a delivery commitment. GitHub Issues hold live status.
+## Phase 1 — Connector and index assurance foundation
 
-## Completed baseline — Beta 5 functional freeze
+- Canonical connector contract for inventory, object reads, metadata/tags, events and governance state.
+- AWS S3 and HCP connectors.
+- Apache Hop/Tika full-text and metadata indexing into Solr.
+- Durable indexing ledger, selective reprocessing and source-to-index reconciliation.
+- Workload separation for creates, updates, deletes and repair.
 
-- Frozen functional baseline: `0.9.0-beta.5.0.6`.
-- Clean-lab full cumulative regression passed on 2026-09-22.
-- Gateway response modes, native versions, package placement, HCP/S3 interoperability, migration, hydration, change capture, and Catalogue lifecycle are accepted in the lab topology.
-- Reconciliation depth and non-functional certification remain separate gates.
+## Phase 2 — Search and analytics
 
-## Next — Beta 6 hardening
+- Metadata/full-text index strategy and schema catalogue.
+- Intelligent query router using user mappings and index capabilities.
+- Heterogeneous result normalization, deduplication and consolidation.
+- Configurable facet/stat dashboards: age, size, type, retention, sensitivity and duplicates.
+- Async metadata/object export.
 
-- Real HCP native adapter and MQE baseline/delta integration.
-- Production Apache Hop pipelines and Solr writer.
-- OIDC, LDAP/AD integration, RBAC, route authorization, and managed secrets.
-- Multipart S3, CopyObject, presigned URLs, and expanded compatibility testing.
-- Prometheus/OpenTelemetry instrumentation, dashboards, alerts, and SLOs.
-- HA/failover, upgrade, backup/restore, WAN, scale, and performance testing.
+## Phase 3 — Governance
 
-## Later — GA candidate
+- Retention policy compiler, dry-run, approval and explainability.
+- Native Object Lock/retention/hold adapters with verification.
+- User-managed regex PII rules with field targeting and sensitivity evidence.
+- Coverage, exception, ageing, hold and compliance reports.
 
-- Historic-version migration and source/target version mapping.
-- Backend-native retention, legal-hold, WORM, and lifecycle state translation/reconciliation.
-- S3 Inventory/S3 Metadata ingestion and large-estate discovery optimization.
-- Production deployment profiles, capacity guidance, security assessment, and operational runbooks.
+## Phase 4 — Platform expansion
 
-## Future product tracks
+- Azure Blob Storage connector.
+- VSP One Object connector.
+- Cross-platform federated search and governance reporting.
+- Scale, HA, security and production certification.
 
-- Heterogeneous federated search using a schema catalogue, index map, query router, and rank aggregation.
-- Metadata/full-text index separation with application-level query routing.
-- Governed asynchronous metadata and document export.
-- Configurable pre-search authorization maps.
-- PII scan policies and reporting over indexed fields.
-- Source-object-size billing, age, and document-type analytics with AI-recommended dashboards.
-- Natural-language query assistance with field discovery and cost guardrails.
+## Explicit non-goals
 
+- Client-facing storage gateway or protocol translation.
+- Replacing object-storage durability, replication or native APIs.
+- Emulating WORM/Object Lock using database flags.

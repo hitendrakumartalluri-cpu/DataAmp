@@ -13,9 +13,9 @@
 
 ## Branch and commit convention
 
-- Branch: `feature/AMP-MIG-001-short-description`
-- Commit: `AMP-MIG-001: add migration retry policy`
-- Pull requests must link features, issues, ADRs, tests, and migration/rollback considerations.
+- Branch: `feature/AMP-CON-001-short-description`
+- Commit: `AMP-CON-001: add connector capability probe`
+- Pull requests must link features, issues, ADRs, tests, and upgrade/rollback considerations.
 
 ## Definition of done
 

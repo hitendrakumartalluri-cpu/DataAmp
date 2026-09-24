@@ -1,18 +1,12 @@
-# AMP Module Documentation
-
-This section explains AMP by product module. Each page distinguishes the current Beta 5 implementation from the complete-product target.
+# AMP Modules
 
 | Module | Responsibility |
 |---|---|
-| [Gateway](GATEWAY.md) | Client protocols, routing, response policy and backend adapters |
-| [Managed objects](MANAGED_OBJECTS.md) | Object identity, package layout, manifests and annotations |
-| [Catalogue](CATALOGUE.md) | Administrative inventory, sharding, generations and lifecycle |
-| [Change capture](CHANGE_CAPTURE.md) | Storage events, normalization, idempotency and replay |
-| [Migration](MIGRATION.md) | Batch migration, read-through hydration and lineage |
-| [Reconciliation](RECONCILIATION.md) | Storage, index and AI assurance, drift detection and evidence |
-| [Indexing and Hop](INDEXING_HOP.md) | Storage-direct extraction, transformation and index delivery |
-| [Search and AI](SEARCH_AI.md) | Solr retrieval, federation, analytics, datasets and AI assistance |
-| [Governance](GOVERNANCE.md) | Authorization, audit, PII, retention, hold and evidence |
-| [Platform operations](PLATFORM_OPERATIONS.md) | Deployment, observability, scheduling, resilience and security |
-
-Module pages define product behavior. Live delivery status remains in the [Feature Tracker](../features/FEATURE_TRACKER.md).
+| [Connectors](CONNECTORS.md) | Native inventory, reads, metadata/tags, events and governance actions |
+| [Catalogue](CATALOGUE.md) | Administrative inventory, identity and source observations |
+| [Change capture](CHANGE_CAPTURE.md) | Normalize source changes and isolate workloads |
+| [Indexing and Hop](INDEXING_HOP.md) | Extraction, enrichment and Solr projection |
+| [Reconciliation](RECONCILIATION.md) | Source-to-index completeness and drift evidence |
+| [Search and analytics](SEARCH_AI.md) | Query routing, result consolidation, facets and statistics |
+| [Governance](GOVERNANCE.md) | PII, retention, hold, verification and evidence |
+| [Platform operations](PLATFORM_OPERATIONS.md) | Deployment, security, monitoring and release gates |

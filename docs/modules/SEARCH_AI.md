@@ -1,25 +1,23 @@
-# Search, Analytics and AI Module
+# Search and Analytics Module
 
 ## Responsibility
 
-Provides end-user retrieval and knowledge capabilities over Solr/AI indexes while preserving authorization, explainability and reconciliation.
+Provides end-user retrieval and analytics over heterogeneous Solr indexes while preserving authorization, explainability and reconciliation.
 
-## Current Beta 5
+## Current foundation
 
 - Solr is defined as the end-user search plane.
-- Local search/embedding simulator.
-- Dataset materialization and retrieval simulator.
-- Index and AI artifact reconciliation.
+- Local search simulator.
+- Dataset materialization and index reconciliation.
 - Management surfaces are beta; production search pipelines are pending.
 
 ## Complete-product scope
 
-- Heterogeneous federated search using schema catalogue, index map, query routing and rank fusion.
+- Heterogeneous federated search using schema catalogue, user field mappings, index map, query routing and result consolidation.
 - Field-aware natural-language query assistance with cost/safety controls.
 - Metadata and document export jobs.
-- Billing, ageing, document-type and usage dashboards.
-- Document classification and auto-tagging.
-- Governed datasets, model/pipeline provenance and AI access guardrails.
+- Configurable Solr facet/stat dashboards for duplicates, age, size, type, retention and sensitivity.
+- Duplicate detection using strong hashes with explicitly labelled heuristic fallback.
 
 ## Boundaries
 

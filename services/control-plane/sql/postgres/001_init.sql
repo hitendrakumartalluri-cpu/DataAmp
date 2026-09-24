@@ -66,19 +66,6 @@ CREATE TABLE IF NOT EXISTS metadata_records (
 );
 
 
-CREATE TABLE IF NOT EXISTS gateway_routes (
-  id UUID PRIMARY KEY, tenant_id TEXT NOT NULL, namespace TEXT NOT NULL,
-  catalogue_group_id UUID NOT NULL REFERENCES catalogue_groups(id) ON DELETE CASCADE,
-  object_prefix TEXT NOT NULL DEFAULT '', state TEXT NOT NULL DEFAULT 'ACTIVE',
-  response_mode TEXT NOT NULL DEFAULT 'AMP_NORMALIZED',
-  backend_header_policy TEXT NOT NULL DEFAULT 'SELECTED',
-  add_amp_request_id BOOLEAN NOT NULL DEFAULT TRUE,
-  capture_backend_response BOOLEAN NOT NULL DEFAULT TRUE,
-  max_captured_error_body_bytes INTEGER NOT NULL DEFAULT 65536,
-  created_at TIMESTAMPTZ NOT NULL, updated_at TIMESTAMPTZ NOT NULL,
-  UNIQUE(tenant_id, namespace)
-);
-
 CREATE TABLE IF NOT EXISTS object_annotations (
   id UUID PRIMARY KEY, catalogue_object_id UUID NOT NULL REFERENCES catalogue_objects(id) ON DELETE CASCADE,
   annotation_name TEXT NOT NULL, sidecar_key TEXT NOT NULL, content_type TEXT NOT NULL,
@@ -109,14 +96,6 @@ CREATE TABLE IF NOT EXISTS object_version_annotation_links (
   payload_native_version_id TEXT NOT NULL, annotation_name TEXT NOT NULL, annotation_native_version_id TEXT NOT NULL DEFAULT '',
   linked_at TIMESTAMPTZ NOT NULL,
   UNIQUE(catalogue_object_id, payload_native_version_id, annotation_name)
-);
-
-CREATE TABLE IF NOT EXISTS backend_transactions (
-  id UUID PRIMARY KEY, tenant_id TEXT NOT NULL, gateway_route_id UUID, catalogue_group_id UUID,
-  object_id UUID, request_id TEXT, protocol TEXT NOT NULL, operation TEXT NOT NULL, logical_key TEXT,
-  backend_kind TEXT, backend_status INTEGER, backend_code TEXT, outcome TEXT NOT NULL,
-  response_headers_json JSONB NOT NULL DEFAULT '{}'::jsonb, raw_response_json JSONB NOT NULL DEFAULT '{}'::jsonb,
-  error_body TEXT, created_at TIMESTAMPTZ NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS reconciliation_results (
@@ -227,7 +206,6 @@ CREATE INDEX IF NOT EXISTS idx_event_watermarks_group ON event_object_watermarks
 CREATE INDEX IF NOT EXISTS idx_schedules_due ON catalogue_schedules(enabled, next_run_at);
 
 
-CREATE INDEX IF NOT EXISTS idx_gateway_routes_tenant ON gateway_routes(tenant_id, state, namespace);
 CREATE INDEX IF NOT EXISTS idx_annotations_object ON object_annotations(catalogue_object_id, state, annotation_name);
 
 ALTER TABLE catalogue_objects ADD COLUMN IF NOT EXISTS storage_layout TEXT NOT NULL DEFAULT 'DIRECT';
@@ -251,18 +229,12 @@ CREATE INDEX IF NOT EXISTS idx_ai_recon ON ai_artifacts(source_id, container_nam
 CREATE INDEX IF NOT EXISTS idx_audit_group ON audit_events(catalogue_group_id, created_at DESC);
 
 
--- beta.5 response/version observation additions for existing databases
-ALTER TABLE gateway_routes ADD COLUMN IF NOT EXISTS response_mode TEXT NOT NULL DEFAULT 'AMP_NORMALIZED';
-ALTER TABLE gateway_routes ADD COLUMN IF NOT EXISTS backend_header_policy TEXT NOT NULL DEFAULT 'SELECTED';
-ALTER TABLE gateway_routes ADD COLUMN IF NOT EXISTS add_amp_request_id BOOLEAN NOT NULL DEFAULT TRUE;
-ALTER TABLE gateway_routes ADD COLUMN IF NOT EXISTS capture_backend_response BOOLEAN NOT NULL DEFAULT TRUE;
-ALTER TABLE gateway_routes ADD COLUMN IF NOT EXISTS max_captured_error_body_bytes INTEGER NOT NULL DEFAULT 65536;
+-- Native-version observation retained for connector-based indexing.
 ALTER TABLE object_annotations ADD COLUMN IF NOT EXISTS native_version_id TEXT NOT NULL DEFAULT '';
 ALTER TABLE object_annotations ADD COLUMN IF NOT EXISTS backend_response_json JSONB NOT NULL DEFAULT '{}'::jsonb;
 CREATE INDEX IF NOT EXISTS idx_object_versions_object ON catalogue_object_versions(catalogue_object_id,is_current,observed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_annotation_versions_annotation ON object_annotation_versions(annotation_id,is_current,observed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_version_annotation_links ON object_version_annotation_links(catalogue_object_id,payload_native_version_id,annotation_name);
-CREATE INDEX IF NOT EXISTS idx_backend_transactions_route ON backend_transactions(gateway_route_id,created_at DESC);
 
 ALTER TABLE object_annotations ADD COLUMN IF NOT EXISTS payload_native_version_id TEXT NOT NULL DEFAULT '';
 ALTER TABLE object_annotation_versions ADD COLUMN IF NOT EXISTS payload_native_version_id TEXT NOT NULL DEFAULT '';

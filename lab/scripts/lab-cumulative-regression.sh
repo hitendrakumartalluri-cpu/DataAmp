@@ -21,13 +21,13 @@ mkdir -p "$RESULT_DIR"
 case "$PROFILE" in
   quick)
     DEFAULT_CAT_TOTAL=20; DEFAULT_CAT_UPDATES=4; DEFAULT_CAT_DELETES=2; DEFAULT_CAT_TIMEOUT=600
-    DEFAULT_HCP_TOTAL=3; DEFAULT_S3_TOTAL=3; DEFAULT_MIG_TIMEOUT=300 ;;
+    ;;
   full)
     DEFAULT_CAT_TOTAL=50; DEFAULT_CAT_UPDATES=10; DEFAULT_CAT_DELETES=5; DEFAULT_CAT_TIMEOUT=900
-    DEFAULT_HCP_TOTAL=10; DEFAULT_S3_TOTAL=10; DEFAULT_MIG_TIMEOUT=600 ;;
+    ;;
   soak)
     DEFAULT_CAT_TOTAL=500; DEFAULT_CAT_UPDATES=50; DEFAULT_CAT_DELETES=25; DEFAULT_CAT_TIMEOUT=1800
-    DEFAULT_HCP_TOTAL=100; DEFAULT_S3_TOTAL=100; DEFAULT_MIG_TIMEOUT=900 ;;
+    ;;
   *) echo "[FAIL] AMP_REGRESSION_PROFILE must be quick, full, or soak (got '$PROFILE')" >&2; exit 2 ;;
 esac
 
@@ -35,9 +35,6 @@ CAT_TOTAL="${AMP_REGRESSION_CAT_TOTAL:-$DEFAULT_CAT_TOTAL}"
 CAT_UPDATES="${AMP_REGRESSION_CAT_UPDATES:-$DEFAULT_CAT_UPDATES}"
 CAT_DELETES="${AMP_REGRESSION_CAT_DELETES:-$DEFAULT_CAT_DELETES}"
 CAT_TIMEOUT="${AMP_REGRESSION_CAT_TIMEOUT:-$DEFAULT_CAT_TIMEOUT}"
-HCP_TOTAL="${AMP_REGRESSION_HCP_TOTAL:-$DEFAULT_HCP_TOTAL}"
-S3_TOTAL="${AMP_REGRESSION_S3_TOTAL:-$DEFAULT_S3_TOTAL}"
-MIG_TIMEOUT="${AMP_REGRESSION_MIG_TIMEOUT:-$DEFAULT_MIG_TIMEOUT}"
 FINAL_LAG_TIMEOUT="${AMP_REGRESSION_FINAL_LAG_TIMEOUT:-180}"
 
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
@@ -185,12 +182,6 @@ run_stage baseline "Capture DLQ and FAILED-event baselines" snapshot_baseline
 run_stage smoke "Base API smoke + basic reconciliation invocation" ./scripts/lab-smoke-test.sh
 run_stage event-smoke "External MinIO create/delete -> Kafka -> Catalogue" ./scripts/lab-event-smoke-test.sh
 run_stage catalogue-lifecycle "External create/update/delete with stable reconciliation identity" env AMP_TEST_TOTAL="$CAT_TOTAL" AMP_TEST_UPDATES="$CAT_UPDATES" AMP_TEST_DELETES="$CAT_DELETES" AMP_TEST_TIMEOUT="$CAT_TIMEOUT" AMP_TEST_CLEANUP="$CLEANUP" ./scripts/lab-catalogue-lifecycle-test.sh
-run_stage hcp-rest "HCP REST ingest + 3 annotations + package isolation" env AMP_HCP_TEST_CATALOGUE_GROUP_ID="$PRIMARY_CAT" AMP_HCP_TEST_TOTAL="$HCP_TOTAL" AMP_HCP_TEST_CLEANUP="$CLEANUP" ./scripts/lab-hcp-rest-ingest-test.sh
-run_stage package-placement "AMP_MANAGED_HASH and CLIENT_PATH physical package placement" env AMP_PACKAGE_TEST_CATALOGUE_GROUP_ID="$PRIMARY_CAT" ./scripts/lab-package-placement-test.sh
-run_stage s3-interop "S3 SigV4 + range/list/metadata/tags + HCP<->S3 interoperability" env AMP_S3_TEST_CATALOGUE_GROUP_ID="$PRIMARY_CAT" AMP_S3_TEST_TOTAL="$S3_TOTAL" AMP_S3_TEST_CLEANUP="$CLEANUP" ./scripts/lab-s3-interop-test.sh
-run_stage native-version "Backend-native payload/annotation versions and historical retrieval" env AMP_VERSION_TEST_CATALOGUE_GROUP_ID="$PRIMARY_CAT" ./scripts/lab-native-version-test.sh
-run_stage response-policy "RAW_BACKEND and normalized Gateway response policies" env AMP_RESPONSE_TEST_CATALOGUE_GROUP_ID="$PRIMARY_CAT" ./scripts/lab-response-policy-test.sh
-run_stage migration-hydration "Migration dry-run/copy and read-through hydration" env AMP_MIG_TEST_TIMEOUT="$MIG_TIMEOUT" ./scripts/lab-migration-hydration-test.sh
 run_stage storage-reconciliation "Targeted, tally and full Storage↔Catalogue reconciliation with controlled drift" env AMP_RECON_TEST_CATALOGUE_GROUP_ID="$PRIMARY_CAT" ./scripts/lab-reconciliation-test.sh
 run_stage final-event-health "Ensure Kafka drained and no new DLQ/FAILED events were introduced" final_event_health
 finish_and_exit

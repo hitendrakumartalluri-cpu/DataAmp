@@ -6,10 +6,8 @@ Everything in this directory is lab-only. It is intentionally separated from pro
 
 - `docker-compose.yml`: full local integration topology.
 - `.env.example`: non-production example configuration.
-- `scripts/`: setup, reset, smoke, compatibility, lifecycle, migration, and acceptance scripts.
+- `scripts/`: setup, reset, smoke, connector lifecycle and reconciliation scripts.
 - `deploy/kind/`: local Kubernetes manifests.
-- `docs/SETUP_WINDOWS_WSL2.md`: Windows/WSL2 setup.
-- `docs/ACCEPTANCE_TEST_PLAN.md`: ordered Beta 5 validation sequence.
 
 ## Quick start
 
@@ -35,4 +33,3 @@ AMP_REGRESSION_RESET=1 AMP_REGRESSION_PROFILE=full \
 ```
 
 Use individual acceptance tests for fault isolation. Lab credentials, local ports, simulators, and topology must never be treated as production defaults.
-

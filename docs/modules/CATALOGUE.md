@@ -2,9 +2,9 @@
 
 ## Responsibility
 
-Maintains AMP's administrative inventory for assurance, migration and reconciliation. It is not the end-user search engine.
+Maintains AMP's administrative inventory for connector assurance and reconciliation. It is not the end-user search engine.
 
-## Current Beta 5
+## Current foundation
 
 - One Catalogue Group per storage system plus namespace/bucket/container.
 - Persistent catalogue-local reconciliation namespace.
@@ -13,7 +13,7 @@ Maintains AMP's administrative inventory for assurance, migration and reconcilia
 - Discovery generations, ACTIVE/MISSING/TOMBSTONED states.
 - Native payload and annotation version inventory.
 - Independent freeze, verify, archive and decommission lifecycle.
-- Object, version, checksum, package, lineage and backend-state records.
+- Object, version, checksum, metadata and backend-state records.
 
 ## Flow
 
@@ -24,7 +24,7 @@ Storage listing/events -> Catalogue Group -> virtual shard
 
 ## Boundaries
 
-Cross-container copies receive target-local identities; lineage connects source and target. PostgreSQL catalogue data is administrative truth, not content search.
+PostgreSQL catalogue data is administrative truth and evidence, not content search.
 
 ## Complete-product scope
 

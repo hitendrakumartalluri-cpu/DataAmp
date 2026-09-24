@@ -217,67 +217,6 @@ class CatalogService:
             rec["root_path"] = str(Path(storage.get("root_path") or storage.get("endpoint") or ".") / group["container_name"])
         return rec
 
-    # ---------- gateway routing / HCP compatibility ----------
-    def configure_gateway_route(self, *, tenant: str, namespace: str, catalogue_group_id: str,
-                                object_prefix: str = "", response_mode: str = "AMP_NORMALIZED",
-                                backend_header_policy: str = "SELECTED", add_amp_request_id: bool = True,
-                                capture_backend_response: bool = True, max_captured_error_body_bytes: int = 65536) -> dict:
-        namespace = (namespace or "").strip()
-        if not namespace:
-            raise ValueError("namespace is required")
-        group = self.get_catalogue_group(catalogue_group_id)
-        if group["tenant_id"] != tenant:
-            raise ValueError("gateway route tenant/catalogue mismatch")
-        if group["state"] != "ACTIVE":
-            raise ValueError("gateway route requires an ACTIVE catalogue group")
-        object_prefix = (object_prefix or "").strip("/")
-        if object_prefix:
-            object_prefix += "/"
-        response_mode = str(response_mode or "AMP_NORMALIZED").upper()
-        if response_mode not in {"RAW_BACKEND", "AMP_NORMALIZED", "AMP_NORMALIZED_WITH_BACKEND"}:
-            raise ValueError("invalid response_mode")
-        backend_header_policy = str(backend_header_policy or "SELECTED").upper()
-        if backend_header_policy not in {"NONE", "SELECTED", "ALL_SAFE"}:
-            raise ValueError("invalid backend_header_policy")
-        max_captured_error_body_bytes = max(0, min(int(max_captured_error_body_bytes or 0), 1024 * 1024))
-        existing = self.db.fetchone("SELECT id FROM gateway_routes WHERE tenant_id=? AND namespace=?", (tenant, namespace))
-        ts = now()
-        if existing:
-            rid = existing["id"]
-            self.db.execute(
-                "UPDATE gateway_routes SET catalogue_group_id=?,object_prefix=?,response_mode=?,backend_header_policy=?,add_amp_request_id=?,capture_backend_response=?,max_captured_error_body_bytes=?,state='ACTIVE',updated_at=? WHERE id=?",
-                (catalogue_group_id, object_prefix, response_mode, backend_header_policy, bool(add_amp_request_id), bool(capture_backend_response), max_captured_error_body_bytes, ts, rid),
-            )
-        else:
-            rid = uid()
-            self.db.execute(
-                "INSERT INTO gateway_routes(id,tenant_id,namespace,catalogue_group_id,object_prefix,response_mode,backend_header_policy,add_amp_request_id,capture_backend_response,max_captured_error_body_bytes,state,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                (rid, tenant, namespace, catalogue_group_id, object_prefix, response_mode, backend_header_policy, bool(add_amp_request_id), bool(capture_backend_response), max_captured_error_body_bytes, "ACTIVE", ts, ts),
-            )
-        self.audit(tenant, "GATEWAY_ROUTE_CONFIGURE", group_id=catalogue_group_id,
-                   details={"namespace": namespace, "object_prefix": object_prefix, "response_mode": response_mode,
-                            "backend_header_policy": backend_header_policy})
-        return self.get_gateway_route(tenant, namespace)
-
-    def get_gateway_route(self, tenant: str, namespace: str) -> dict:
-        row = self.db.fetchone(
-            """SELECT r.*,g.name catalogue_name,g.container_name,g.container_type,g.storage_id
-               FROM gateway_routes r JOIN catalogue_groups g ON g.id=r.catalogue_group_id
-               WHERE r.tenant_id=? AND r.namespace=? AND r.state='ACTIVE'""",
-            (tenant, namespace),
-        )
-        if not row:
-            raise KeyError(f"{tenant}/{namespace}")
-        return row
-
-    def list_gateway_routes(self, tenant: str) -> list[dict]:
-        return self.db.fetchall(
-            """SELECT r.*,g.name catalogue_name,g.container_name,g.container_type,g.storage_id
-               FROM gateway_routes r JOIN catalogue_groups g ON g.id=r.catalogue_group_id
-               WHERE r.tenant_id=? ORDER BY r.namespace""",
-            (tenant,),
-        )
-
     # ---------- annotation sidecar manifest ----------
     def upsert_annotation(self, object_id: str, annotation_name: str, sidecar_key: str,
                           content_type: str, size_bytes: int, checksum_sha256: str,
@@ -428,8 +367,6 @@ class CatalogService:
         if existing:
             oid = existing["id"]
             effective_source_mode = source_mode
-            if source_mode == "EVENT" and str(existing.get("source_mode") or "").upper() in {"GATEWAY", "MIGRATED"}:
-                effective_source_mode = str(existing.get("source_mode") or source_mode)
             effective_layout = storage_layout or existing.get("storage_layout") or "DIRECT"
             effective_package_root = package_root if package_root is not None else existing.get("package_root")
             effective_payload_key = payload_key or existing.get("payload_key") or object_key
@@ -554,23 +491,6 @@ class CatalogService:
         rows = self.db.fetchall("SELECT * FROM object_annotation_versions WHERE annotation_id=? ORDER BY observed_at DESC", (annotation_id,))
         for r in rows:
             r["backend_response"] = self.db.loads(r.pop("backend_response_json", "{}"), {})
-        return rows
-
-    def record_backend_transaction(self, *, tenant_id: str, route_id: str | None, group_id: str | None, object_id: str | None,
-                                   request_id: str, protocol: str, operation: str, logical_key: str, backend_kind: str,
-                                   backend_status: int | None, backend_code: str, outcome: str, headers: dict | None = None,
-                                   raw_response: dict | None = None, error_body: str = "") -> str:
-        tid = uid()
-        self.db.execute("INSERT INTO backend_transactions(id,tenant_id,gateway_route_id,catalogue_group_id,object_id,request_id,protocol,operation,logical_key,backend_kind,backend_status,backend_code,outcome,response_headers_json,raw_response_json,error_body,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                        (tid, tenant_id, route_id, group_id, object_id, request_id, protocol, operation, logical_key, backend_kind,
-                         backend_status, backend_code, outcome, self.db.dumps(headers or {}), self.db.dumps(raw_response or {}), error_body, now()))
-        return tid
-
-    def list_backend_transactions(self, tenant_id: str, limit: int = 100) -> list[dict]:
-        rows = self.db.fetchall("SELECT * FROM backend_transactions WHERE tenant_id=? ORDER BY created_at DESC LIMIT ?", (tenant_id, max(1, min(int(limit), 1000))))
-        for r in rows:
-            r["response_headers"] = self.db.loads(r.pop("response_headers_json", "{}"), {})
-            r["raw_response"] = self.db.loads(r.pop("raw_response_json", "{}"), {})
         return rows
 
     @staticmethod

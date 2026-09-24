@@ -1,51 +1,23 @@
 # Project Status
 
-**As of:** 2026-09-23  
-**Development baseline:** 0.9.0-beta.6.0-dev.1  
-**Frozen reference:** 0.9.0-beta.5.0.6  
-**Lifecycle:** Enterprise beta; lab validation required; not production-certified
+## Current direction
 
-## Current objective
+The gateway product line was retired on 2026-09-24. Active development now targets connector-based indexing, search, analytics, reconciliation and governance for AWS S3, Azure Blob Storage, HCP and VSP One Object.
 
-Keep the accepted Beta 5 reference frozen while building Beta 6 reconciliation, then performance/resilience and production adapters.
+## Preserved baseline
 
-## Implemented in the baseline
+The former Gateway Beta implementation, documentation and regression evidence are preserved on `archive/gateway-beta-2026-09-24`. It remains historical evidence and is not part of the active product runtime.
 
-- HCP REST and S3-compatible gateway subsets over one managed-object service.
-- AMP package V3 with hashed or client-path placement and sidecar annotations.
-- Per-route raw or normalized gateway responses and safe backend-header policies.
-- Backend-native VersionId tracking and payload-to-annotation snapshot mapping.
-- Container-scoped Catalogue Groups, 1024 virtual shards, generations, missing states, and tombstones.
-- Kafka-based MinIO change capture with idempotency, stale-event handling, DLQ, and replay foundations.
-- Discovery, migration, dry-run, read-through hydration, lineage, and reconciliation beta flows.
-- Management UI and API for the implemented beta functions.
-- Docker Compose lab, kind starter, Helm starter, unit tests, and scripted lab acceptance tests.
+## Active foundations
 
-## Current verification state
+- Storage-system and container-scoped catalogue model.
+- Storage discovery and normalized change events.
+- Tika/local extraction simulator and search projection.
+- Deterministic object identity and reconciliation findings.
+- HCP MQE and AWS/MinIO event-adapter scaffolding.
 
-- Unit suite passes from the governed repository layout: **19 passed** on 2026-09-19.
-- The complete clean-lab acceptance sequence is documented under `lab/docs/ACCEPTANCE_TEST_PLAN.md`.
-- Cumulative regression is the verification gate: `scripts/lab-cumulative-regression.sh` re-runs all previously proven functional stages and retains per-stage evidence under `.amp-test-results/`.
-- **Full cumulative regression PASS** on 2026-09-22 for AMP `0.9.0-beta.5.0.6`, run `20260922T110649Z-48979`; all 14 stages passed.
-- **Clean-lab full cumulative regression PASS** on 2026-09-22, run `20260922T113642Z-52430`; reset + all 15 stages passed. Evidence: `docs/testing/evidence/BETA5_CLEAN_LAB_FULL_REGRESSION_20260922.md`.
-- The tested Gateway/Catalogue/Change-Capture/Managed-Package/Native-Version/Migration-Hydration functional baseline is now **Accepted for Beta 5 in the lab topology**. This is not production certification.
-- **Storage↔Catalogue reconciliation is Verified (lab)** on `0.9.0-beta.6.0-dev.1`: TARGETED, TALLY, FULL, package integrity and cumulative regression all passed. Evidence: `docs/testing/evidence/BETA6_STORAGE_RECONCILIATION_20260923.md`.
-- No WAN, scale, HA, failover, security federation, or production HOP/Solr certification exists yet.
+## Next delivery gate
 
-## Immediate next actions
+Define the canonical connector contract and prove AWS S3 plus HCP read-only ingestion through full-text/metadata indexing, search and source-to-index reconciliation. Azure Blob and VSP One Object follow through the same contract.
 
-1. Build and validate Index/Solr reconciliation: completeness, stale content, orphan records and pipeline-version drift.
-2. Add AI artifact reconciliation after Index/Solr acceptance.
-3. Continue to run the cumulative regression gate after every increment; use individual stages only for fault isolation.
-4. Implement real HCP MQE/AWS inventory providers and production HOP-to-Solr pipelines.
-5. Add OIDC/RBAC, secrets handling, metrics, tracing, and SLOs before production claims.
-
-## Known blockers and risks
-
-- Authentication is deliberately parked in Beta 5.
-- AWS and HCP event adapters are scaffolds, not production integrations.
-- Multipart S3, CopyObject, presigned URLs, and full version APIs are deferred.
-- Historic-version migration and native compliance-state translation are not implemented.
-- The Helm chart is a starter and does not establish HA or production sizing.
-
-Status changes belong in GitHub Issues/Projects; this page summarizes direction and release readiness only.
+No current Beta line is production-certified.

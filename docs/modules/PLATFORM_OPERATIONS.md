@@ -35,6 +35,6 @@ Packages, configures, observes and operates AMP services and their dependencies.
 
 ## Validation model
 
-AMP uses cumulative regression as a release gate. Every increment reruns the previously proven Gateway, Catalogue, package, versioning, response-policy, migration and event-capture behavior before a capability is promoted from **Implemented** to **Verified**.
+AMP uses cumulative regression as a release gate. Every increment reruns connector discovery, change capture, indexing, search and reconciliation behavior before a capability is promoted from **Implemented** to **Verified**.
 
 See [Validation Model](../VALIDATION_MODEL.md) for the architectural verification model and [Testing Cycles](../testing/TEST_CYCLES.md) for the executable repository workflow.

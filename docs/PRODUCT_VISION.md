@@ -1,27 +1,33 @@
 # Product Vision
 
-DataAmp is an enterprise Archive Modernization Platform that lets organizations administer, access, migrate, reconcile, search, and prepare object data for AI across heterogeneous storage systems without making AMP the storage system of record.
+AMP makes enterprise object stores searchable, measurable and governable without moving ownership of the objects away from their native platform.
+
+## Target platforms
+
+- AWS S3
+- Azure Blob Storage
+- Hitachi Content Platform, including its native metadata model
+- VSP One Object
 
 ## Product planes
 
-1. **Access and migration:** protocol compatibility, storage adapters, routing, package/annotation management, batch migration, and read-through hydration.
-2. **Catalogue and assurance:** container-scoped administrative catalogues, change capture, generations, reconciliation, audit, lineage, and decommission evidence.
-3. **Search and knowledge:** storage-direct Hop pipelines, extraction/enrichment, Solr and AI indexes, federated retrieval, datasets, and governed downstream validation.
+1. **Connect and observe:** inventory, metadata/tags, events, versions and governance state.
+2. **Index and assure:** full-text extraction, selective processing, Solr projection and reconciliation.
+3. **Search and analyse:** schema-aware routing, heterogeneous result consolidation, facets and statistics.
+4. **Govern:** PII discovery, retention and hold policies, native backend actions, verification and evidence.
 
 ## Principles
 
-- Storage backends remain authoritative for durability, native versions, replication, WORM, retention, legal hold, lifecycle, encryption, and deletion decisions.
-- One storage system plus namespace/bucket/container defines one logical Catalogue Group.
-- The catalogue is an administrative truth and evidence plane, not an end-user search engine.
-- Search and AI pipelines read storage directly and share deterministic object identity with AMP.
-- Migration never registers a target object until its physical target write succeeds.
-- Protocol-specific behavior is isolated behind adapters; common logic operates on canonical managed objects.
-- Capabilities are promoted only with explicit acceptance evidence.
+- Storage remains authoritative for object bytes, versions, retention, Object Lock and legal holds.
+- Connectors are capability-driven; unsupported features are reported rather than emulated.
+- Every indexed projection is traceable to a source object version and pipeline version.
+- Policy candidates may be selected from Solr, but destructive or compliance actions require source verification.
+- Query authorization is applied before search, facets, exports and retrieval.
+- A delete storm must not starve new-object indexing.
 
 ## Non-goals
 
-- Replacing backend compliance enforcement with database flags.
-- Owning backend replication or version pruning.
-- Using PostgreSQL catalogue queries as enterprise content search.
-- Claiming full S3 or HCP compatibility before the compatibility matrix proves it.
-
+- A storage gateway or universal object API.
+- Replacing AWS, Azure, HCP or VSP One Object.
+- Full cloud-governance-suite parity.
+- Claiming regulatory compliance solely because a policy exists in AMP.
