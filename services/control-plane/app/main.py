@@ -60,8 +60,8 @@ async def request_context(request: Request, call_next):
             # Legacy models default to the configured demo tenant. Never let an
             # omitted tenant silently access that tenant under another identity.
             explicit_tenant = request.query_params.get("tenant_id")
-            if isinstance(payload, dict):
-                explicit_tenant = payload.get("tenant_id", explicit_tenant)
+            if isinstance(payload, dict) and request.method in {"POST", "PUT", "PATCH"} and "application/json" in request.headers.get("content-type", ""):
+                explicit_tenant = payload.get("tenant_id")
             if explicit_tenant != identity.tenant:
                 return Response(content='{"detail":"explicit tenant_id required on legacy routes"}', status_code=403, media_type="application/json")
         resource_ids = [part for part in request.url.path.split("/") if re.fullmatch(r"[0-9a-fA-F-]{36}", part)]

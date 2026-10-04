@@ -251,7 +251,7 @@ class ArchiveService:
             with open(restored.name, "rb") as inp:
                 data = inp.read(int(os.getenv("AMP_MAX_EXTRACT_BYTES", str(8 * 1024 * 1024))))
         text, extraction = self.processing.extract_text(data, item["content_type"], item["name"])
-        source = "archive:" + item["profile_id"]
+        source = item["profile_id"]
         with self.db.connection() as conn:
             conn.execute(self.db._sql("DELETE FROM search_documents WHERE tenant_id=? AND recon_id=? AND source_id=?"), (tenant, iid, source))
             # Even metadata-only/empty content produces a searchable name projection.

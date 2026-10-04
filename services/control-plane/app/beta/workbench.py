@@ -90,7 +90,7 @@ class WorkbenchService:
         return result
 
     def archive_access_fields(self, item):
-        row = self.db.fetchone("SELECT fields_json FROM document_projection WHERE tenant_id=? AND source_id=? AND recon_id=?", (item["tenant_id"], "archive:" + item["profile_id"], item["id"]))
+        row = self.db.fetchone("SELECT fields_json FROM document_projection WHERE tenant_id=? AND source_id=? AND recon_id=?", (item["tenant_id"], item["profile_id"], item["id"]))
         return self.db.loads(row["fields_json"], {}) if row else item["metadata"]
 
     def authorized_ids(self, identity):
@@ -295,11 +295,11 @@ class WorkbenchService:
                 # Non-admin packs contain only the requester's events on authorized records.
                 events = [e for e in events if e.get("recon_id") in ids and (identity.admin or e["actor"] == identity.actor)]
                 archive.writestr("access-audit.json", self.db.dumps(events))
-                receipts = [self.archive.item(identity.tenant, d["recon_id"])["receipt"] for d in docs if d["source_id"].startswith("archive:")]
+                receipts = [self.archive.item(identity.tenant, d["recon_id"])["receipt"] for d in docs if d["fields"].get("archive_id") == d["recon_id"]]
                 archive.writestr("archive-receipts.json", self.db.dumps(receipts))
             if request.get("include_documents"):
                 for doc in docs:
-                    if not doc["source_id"].startswith("archive:"):
+                    if doc["fields"].get("archive_id") != doc["recon_id"]:
                         raise ValueError("document export currently supports verified AMP archives; source downloads use connector retrieval")
                     target = self.root / (jid + "-" + doc["recon_id"])
                     try:

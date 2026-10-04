@@ -2,6 +2,8 @@ from __future__ import annotations
 import json
 import sqlite3
 import threading
+from uuid import UUID
+from datetime import datetime, date
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterable
@@ -69,11 +71,19 @@ class Database:
     def fetchone(self, sql: str, params: Iterable[Any] = ()) -> dict[str, Any] | None:
         with self.connection() as conn:
             row = conn.execute(self._sql(sql), tuple(params)).fetchone()
-            return dict(row) if row else None
+            return self._row(row) if row else None
 
     def fetchall(self, sql: str, params: Iterable[Any] = ()) -> list[dict[str, Any]]:
         with self.connection() as conn:
-            return [dict(r) for r in conn.execute(self._sql(sql), tuple(params)).fetchall()]
+            return [self._row(r) for r in conn.execute(self._sql(sql), tuple(params)).fetchall()]
+
+    @staticmethod
+    def _row(row) -> dict[str, Any]:
+        # Match SQLite's public identity/date contract while preserving decoded
+        # JSONB values. psycopg otherwise returns UUID/datetime objects.
+        return {key: str(value) if isinstance(value, UUID) else value.isoformat()
+                if isinstance(value, (datetime, date)) else value
+                for key, value in dict(row).items()}
 
     def scalar(self, sql: str, params: Iterable[Any] = (), default: Any = None) -> Any:
         row = self.fetchone(sql, params)

@@ -22,6 +22,7 @@ with TestClient(app) as client:
     assert client.get('/api/v1/beta/identity',headers={'Authorization':'Bearer unknown'}).status_code == 401
     assert client.get('/api/v1/beta/identity',headers=foreign).json()['tenant']=='other'
     assert client.get('/api/v1/storages',headers=foreign).status_code==403
+    assert client.post('/api/v1/storages?tenant_id=other',headers=foreign,json={'name':'unsafe-default','kind':'LOCAL','root_path':'/tmp'}).status_code==403
     assert client.get('/api/v1/beta/archive/profiles',headers=reader).status_code==403
     profile = client.get('/api/v1/beta/archive/profiles',headers=admin).json()[0]
     data={'profile_id':profile['id'],'business_id':'API-1','revision':'1','idempotency_key':'api-1','metadata':'{"jurisdiction":"UK"}'}
