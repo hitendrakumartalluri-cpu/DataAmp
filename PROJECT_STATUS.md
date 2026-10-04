@@ -2,7 +2,7 @@
 
 ## Current direction
 
-The gateway product line was retired on 2026-09-24. Active development now targets connector-based indexing, search, analytics, reconciliation and governance for AWS S3, Azure Blob Storage, HCP and VSP One Object.
+The gateway product line was retired on 2026-09-24. Active development now includes managed archive ingestion alongside connector-based indexing, search, analytics, reconciliation and governance. ADR-0012 adds bounded archive writes without restoring gateway protocols.
 
 ## Preserved baseline
 
@@ -15,6 +15,10 @@ The former Gateway Beta implementation, documentation and regression evidence ar
 - Tika/local extraction simulator and search projection.
 - Deterministic object identity and reconciliation findings.
 - HCP MQE and AWS/MinIO event-adapter scaffolding.
+
+## 0.11.0-beta.1
+
+A runnable archive/workbench beta now includes durable ingestion, typed mapping, local verified payload and metadata receipts, independent index repair, access-filtered search, export/evidence jobs and a console. All 27 issues are mapped to implemented slices, planning tools or deferred/native qualification gates in [release notes](docs/releases/BETA_0_11_0.md). Local regression: 28 passing tests plus Python/JS/shell checks. Real endpoints, external Solr and PostgreSQL qualification remain separate gates.
 
 ## Next delivery gate
 

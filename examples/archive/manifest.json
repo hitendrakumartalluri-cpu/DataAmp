@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "batch_id": "invoices-001",
+  "items": [{
+    "path": "invoice.txt",
+    "business_id": "INV-001",
+    "revision": "1",
+    "idempotency_key": "invoices-001-inv-001-v1",
+    "metadata": {"jurisdiction": "UK", "business_date": "2026-10-04T00:00:00+00:00"}
+  }]
+}

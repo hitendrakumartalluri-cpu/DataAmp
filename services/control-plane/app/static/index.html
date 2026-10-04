@@ -4,12 +4,12 @@
   <meta charset="utf-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1"/>
   <title>AMP Enterprise Beta</title>
-  <link rel="stylesheet" href="/static/styles.css?v=0.10.0-beta.1"/>
+  <link rel="stylesheet" href="/static/styles.css?v=0.11.0-beta.1"/>
 </head>
 <body>
   <header class="product-bar">
     <div class="product"><span class="product-mark">A</span><b>AMP</b><span>Enterprise</span><em>BETA</em></div>
-    <div class="product-actions"><span class="environment"><i></i> All systems operational</span><button title="Help">?</button><button title="Notifications">●</button><button class="user">AD</button></div>
+    <div class="product-actions"><span class="environment"><i></i> Beta runtime</span><button title="API credentials" onclick="credentials()">Access</button><button title="Notifications">●</button><button class="user">AD</button></div>
   </header>
   <div class="app-shell">
     <aside class="sidebar">
@@ -18,17 +18,22 @@
         <button class="nav-item active" data-page="dashboard"><span>▦</span>Dashboard</button>
         <div class="nav-label">BUILD</div>
         <button class="nav-item" data-page="connections"><span>⇄</span>Connections</button>
+        <button class="nav-item" data-page="archive"><span>⇩</span>Archiving</button>
         <button class="nav-item" data-page="pipelines"><span>⌘</span>Pipelines</button>
         <button class="nav-item" data-page="indexes"><span>▤</span>Indexes</button>
         <div class="nav-label">USE</div>
         <button class="nav-item" data-page="search"><span>⌕</span>Search</button>
         <button class="nav-item" data-page="analytics"><span>◫</span>Analytics</button>
         <button class="nav-item" data-page="governance"><span>◇</span>Governance</button>
+        <button class="nav-item" data-page="workbench"><span>▧</span>Design tools</button>
         <div class="nav-label">OPERATE</div>
+        <button class="nav-item" data-page="delivery"><span>⇧</span>Exports & evidence</button>
+        <button class="nav-item" data-page="access"><span>⊙</span>Access & audit</button>
+        <button class="nav-item" data-page="coverage"><span>▤</span>Beta coverage</button>
         <button class="nav-item" data-page="reconcile"><span>✓</span>Reconciliation</button>
         <button class="nav-item" data-page="monitor"><span>⌁</span>Monitoring</button>
       </nav>
-      <div class="version">AMP 0.10.0-beta.1<br/><span>Connector-only architecture</span></div>
+      <div class="version">AMP 0.11.0-beta.1<br/><span>Archiving · Indexing · Governance</span></div>
     </aside>
     <main>
       <div class="pagebar">
@@ -40,6 +45,7 @@
   </div>
   <div id="toast" class="toast"></div>
   <div id="modal" class="modal hidden"><div class="modal-card"><button class="modal-close" onclick="closeModal()">×</button><div id="modal-content"></div></div></div>
-  <script src="/static/app.js?v=0.10.0-beta.1"></script>
+  <script src="/static/app.js?v=0.11.0-beta.1"></script>
+  <script src="/static/beta.js?v=0.11.0-beta.1"></script>
 </body>
 </html>

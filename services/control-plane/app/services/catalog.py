@@ -210,8 +210,10 @@ class CatalogService:
         group = self.get_catalogue_group(gid)
         storage = self.get_storage(group["storage_id"])
         rec = dict(storage)
-        if storage["kind"].upper() in {"S3", "AWS_S3", "MINIO", "HCP_S3"}:
+        if storage["kind"].upper() in {"S3", "AWS_S3", "MINIO", "HCP", "HCP_S3", "VSP_ONE_OBJECT"}:
             rec["bucket"] = group["container_name"]
+        elif storage["kind"].upper() in {"AZURE", "AZURE_BLOB"}:
+            rec["container"] = group["container_name"]
         elif storage["kind"].upper() == "LOCAL" and group["container_name"] not in {"", ".", "/"}:
             from pathlib import Path
             rec["root_path"] = str(Path(storage.get("root_path") or storage.get("endpoint") or ".") / group["container_name"])

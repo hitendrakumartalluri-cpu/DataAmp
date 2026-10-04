@@ -1,3 +1,7 @@
+# 0.11 archive addition
+
+The beta adds a distinct archive job plane: producer/API/package/collector → durable staging → typed metadata mapping → destination payload and metadata verification → durable receipt and indexing outbox. Search visibility is a separate outcome. Archive code lives under `services/control-plane/app/beta/`; gateway protocol handlers remain retired. [ADR-0012](adr/ADR-0012-managed-archive-ingestion.md) updates the earlier managed-placement exclusion. [Release notes](releases/BETA_0_11_0.md) define tested scope and external qualification.
+
 # Architecture
 
 ## System context

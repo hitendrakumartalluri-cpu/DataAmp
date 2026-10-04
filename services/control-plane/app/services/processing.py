@@ -29,6 +29,7 @@ class ProcessingService:
     def __init__(self, db: Database, catalog: CatalogService):
         self.db = db
         self.catalog = catalog
+        self.workbench = None
 
     def read_catalogue_object(self, oid: str) -> tuple[bytes, dict]:
         obj = self.catalog.get_catalogue_object(oid)
@@ -66,7 +67,9 @@ class ProcessingService:
             try:
                 import pypdf
                 rd = pypdf.PdfReader(io.BytesIO(data))
-                return "\n".join((p.extract_text() or "") for p in rd.pages), {"extractor": "pypdf", "pages": len(rd.pages)}
+                if rd.is_encrypted:
+                    return "", {"extractor": "pypdf", "status": "ENCRYPTED", "encrypted": True}
+                return "\n".join((p.extract_text() or "") for p in rd.pages), {"extractor": "pypdf", "pages": len(rd.pages), "encrypted": False}
             except Exception:
                 pass
         if suffix == ".docx":
@@ -76,7 +79,9 @@ class ProcessingService:
                 return "\n".join(p.text for p in d.paragraphs), {"extractor": "python-docx"}
             except Exception:
                 pass
-        return data.decode("utf-8", errors="ignore"), {"extractor": "builtin-text"}
+        if ct.startswith("text/") or suffix in {".txt", ".csv", ".log", ".md"}:
+            return data.decode("utf-8", errors="replace"), {"extractor": "builtin-text"}
+        return "", {"extractor": "none", "status": "UNSUPPORTED_OR_EXTRACTION_FAILED"}
 
     def embedding(self, text: str, dims: int = 64) -> list[float]:
         vec = [0.0] * dims
@@ -93,19 +98,25 @@ class ProcessingService:
         backend = backend_from_record(self.catalog.backend_record_for_group(group_id))
         processed = indexed = 0
         errors: list[dict[str, str]] = []
-        native_items = list(backend.list(prefix))
-        work = [(item.key, item.key, item.version_id or "", item.content_type) for item in native_items]
+        native_items = backend.list(prefix)
+        work = ((item.key, item.key, item.version_id or "", item.content_type) for item in native_items if not item.key.startswith((".amp/", "amp-archive/")))
 
         for logical_key, payload_key, version_id, content_type in work:
             if processed >= limit:
                 break
             processed += 1
+            recon_id = self.catalog.recon_id_for(group, logical_key, version_id)
+            if self.workbench:
+                self.workbench.ledger.record(group["tenant_id"], group["storage_id"], recon_id, version_id, "", "PENDING_INDEX")
             try:
                 stat = backend.head(payload_key)
                 if not stat:
                     raise FileNotFoundError(payload_key)
                 recon_id = self.catalog.recon_id_for(group, logical_key, version_id or stat.version_id or "")
                 data = backend.get(payload_key)
+                after = backend.head(payload_key)
+                if not after or (stat.version_id and after.version_id != stat.version_id) or (stat.etag and after.etag != stat.etag):
+                    raise ValueError("source changed during extraction")
                 content_hash = hashlib.sha256(data).hexdigest()
                 text, meta = self.extract_text(data[:settings.max_extract_bytes], content_type or stat.content_type, logical_key)
                 self.db.execute(
@@ -113,10 +124,10 @@ class ProcessingService:
                     (group["storage_id"], group["container_type"], group["container_name"], recon_id),
                 )
                 chunks = 0
-                for seq, start in enumerate(range(0, len(text), settings.chunk_chars)):
+                for seq, start in enumerate(range(0, max(1, len(text)), settings.chunk_chars)):
                     chunk = text[start:start + settings.chunk_chars].strip()
                     if not chunk:
-                        continue
+                        chunk = logical_key
                     chunks += 1
                     self.db.execute(
                         """INSERT INTO search_documents(id,tenant_id,source_id,container_type,container_name,recon_id,source_version,object_key,content_hash,chunk_seq,text_content,text_hash,embedding_json,pipeline_version,indexed_at)
@@ -126,9 +137,19 @@ class ProcessingService:
                          hashlib.sha256(chunk.encode()).hexdigest(), self.db.dumps(self.embedding(chunk)),
                          self.PIPELINE_VERSION, now()),
                     )
+                if self.workbench:
+                    fields = {"object_key": logical_key, "source_id": group["storage_id"], "container_name": group["container_name"],
+                        "content_type": content_type or stat.content_type, "size_bytes": stat.size, "content_sha256": content_hash,
+                        "source_version": stat.version_id, "indexed_at": now(), "extraction": meta}
+                    fields.update((stat.backend.raw or {}).get("Metadata", {}))
+                    self.workbench.project(group["tenant_id"], group["storage_id"], recon_id, fields)
                 self._upsert_ai_artifact(group, recon_id, content_hash, "EMBEDDING_SET", chunks)
+                if self.workbench:
+                    self.workbench.ledger.record(group["tenant_id"], group["storage_id"], recon_id, version_id or stat.version_id or "", content_hash, "LOCAL_SEARCH_VISIBLE")
                 indexed += 1
             except Exception as exc:
+                if self.workbench:
+                    self.workbench.ledger.record(group["tenant_id"], group["storage_id"], recon_id, version_id, "", "FAILED_RETRYABLE", str(exc))
                 errors.append({"key": logical_key, "error": str(exc)})
         return {"processed": processed, "indexed": indexed, "errors": errors,
                 "pipeline": self.PIPELINE_VERSION, "catalogue_dependency": False}

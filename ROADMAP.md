@@ -1,3 +1,7 @@
+# 0.11 beta update
+
+Managed archiving is now part of the product under ADR-0012. The [0.11 release matrix](docs/releases/BETA_0_11_0.md) is the current issue-by-issue delivery status. Prior planning below remains historical context where it conflicts with this matrix. Next gates: PostgreSQL/live endpoint qualification, application metadata enrichment, scheduler and resumable ingestion, external Solr routing, native policy executors and specialist connectors.
+
 # AMP Roadmap
 
 ## Phase 1 — Connector and index assurance foundation
