@@ -4,8 +4,8 @@
 |---|---|---|
 | Connectors | AWS S3 inventory/events/object reads | Partial Beta scaffold |
 | Connectors | HCP MQE/inventory/metadata reads | Partial Beta scaffold |
-| Connectors | Azure Blob inventory/change feed/reads | Planned |
-| Connectors | VSP One Object inventory/events/reads | Planned |
+| Connectors | Azure Blob inventory and object reads | Partial Beta adapter |
+| Connectors | VSP One Object S3-compatible inventory/events/reads | Partial Beta adapter |
 | Indexing | Tika extraction and local projection simulator | Implemented Beta |
 | Indexing | Persisted pipeline definitions and isolated stage model | Implemented Beta |
 | Indexing | Production Hop-to-Solr pipelines | Planned |

@@ -209,6 +209,65 @@ class S3Storage(StorageBackend):
         return out
 
 
+class AzureBlobStorage(StorageBackend):
+    """Azure Blob adapter loaded only when an Azure connection is used."""
+
+    def __init__(self, cfg: dict):
+        try:
+            from azure.storage.blob import ContainerClient
+        except ImportError as exc:
+            raise RuntimeError("Azure Blob connections require azure-storage-blob") from exc
+        options = cfg.get("options") or {}
+        connection_string = options.get("connection_string")
+        if connection_string:
+            self.client = ContainerClient.from_connection_string(connection_string, cfg["container"])
+        else:
+            credential = cfg.get("secret_key") or cfg.get("access_key") or None
+            self.client = ContainerClient(account_url=cfg["endpoint"], container_name=cfg["container"], credential=credential)
+
+    @staticmethod
+    def _stat(item: Any, key: str | None = None) -> ObjectStat:
+        name = key or getattr(item, "name", "")
+        size = int(getattr(item, "size", None) or getattr(item, "content_length", 0) or 0)
+        etag = str(getattr(item, "etag", "") or "").strip('"')
+        settings = getattr(item, "content_settings", None)
+        content_type = getattr(settings, "content_type", None) or _guess_content_type(name)
+        version_id = str(getattr(item, "version_id", "") or "")
+        compliance = {"blob_type": str(getattr(item, "blob_type", "") or ""), "access_tier": str(getattr(item, "blob_tier", "") or "")}
+        compliance = {k: v for k, v in compliance.items() if v}
+        return ObjectStat(name, size, etag=etag, version_id=version_id, content_type=content_type,
+                          backend=BackendResponseMeta(status=200), compliance=compliance)
+
+    def list(self, prefix: str = ""):
+        for item in self.client.list_blobs(name_starts_with=prefix):
+            yield self._stat(item)
+
+    def head(self, key: str, version_id: str = ""):
+        try:
+            blob = self.client.get_blob_client(key, version_id=version_id or None)
+            return self._stat(blob.get_blob_properties(), key)
+        except Exception as exc:
+            if int(getattr(exc, "status_code", 0) or 0) == 404:
+                return None
+            raise BackendOperationError(str(exc), status=int(getattr(exc, "status_code", 502) or 502), code=type(exc).__name__) from exc
+
+    def get_with_stat(self, key: str, version_id: str = ""):
+        try:
+            blob = self.client.get_blob_client(key, version_id=version_id or None)
+            data = blob.download_blob().readall()
+            stat = self._stat(blob.get_blob_properties(), key)
+            stat.checksum_sha256 = hashlib.sha256(data).hexdigest()
+            return data, stat
+        except Exception as exc:
+            raise BackendOperationError(str(exc), status=int(getattr(exc, "status_code", 502) or 502), code=type(exc).__name__) from exc
+
+    def put(self, key: str, data: bytes, content_type: str = "application/octet-stream") -> ObjectStat:
+        raise BackendOperationError("AMP connector mode is read-only", status=405, code="ReadOnlyConnector")
+
+    def delete(self, key: str, version_id: str = "") -> BackendResponseMeta:
+        raise BackendOperationError("AMP connector mode is read-only", status=405, code="ReadOnlyConnector")
+
+
 def _guess_content_type(key: str) -> str:
     import mimetypes
     return mimetypes.guess_type(key)[0] or "application/octet-stream"
@@ -217,5 +276,9 @@ def _guess_content_type(key: str) -> str:
 def backend_from_record(rec: dict) -> StorageBackend:
     kind = rec["kind"].upper()
     if kind == "LOCAL": return LocalFilesystemStorage(rec.get("root_path") or rec.get("endpoint") or ".")
-    if kind in {"S3", "AWS_S3", "MINIO", "HCP_S3"}: return S3Storage(rec)
+    if kind in {"HCP", "HCP_REST"}:
+        from .hcp import HCPRestStorage
+        return HCPRestStorage(rec)
+    if kind in {"S3", "AWS_S3", "MINIO", "HCP_S3", "VSP_ONE_OBJECT"}: return S3Storage(rec)
+    if kind in {"AZURE", "AZURE_BLOB"}: return AzureBlobStorage(rec)
     raise ValueError(f"Unsupported storage kind: {kind}")

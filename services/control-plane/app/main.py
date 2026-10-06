@@ -18,6 +18,8 @@ from .services.operations import OperationsService
 from .services.events import EventService
 from .services.scheduler import ScheduleService
 from .services.enterprise import EnterpriseService
+from .beta.security import resolve_identity, current_identity
+from .beta.routes import install
 
 app = FastAPI(title="AMP Enterprise Beta API", version=settings.version, docs_url="/docs", redoc_url="/redoc")
 db = Database(settings.database_url)
@@ -35,9 +37,50 @@ app.mount("/static", StaticFiles(directory=STATIC), name="static")
 async def request_context(request: Request, call_next):
     rid = request.headers.get("x-request-id") or str(uuid.uuid4())
     request.state.request_id = rid
-    if settings.api_key and (request.url.path.startswith("/api/") or request.url.path.startswith("/rest/")) and request.headers.get("x-api-key") != settings.api_key:
-        return Response(content='{"detail":"unauthorized"}', status_code=401, media_type="application/json", headers={"x-request-id": rid})
-    resp = await call_next(request)
+    token = None
+    if request.url.path.startswith("/api/"):
+        try:
+            identity = resolve_identity(request, settings.default_tenant, settings.demo_mode, settings.api_key)
+        except PermissionError as exc:
+            return Response(content=__import__("json").dumps({"detail": str(exc)}), status_code=401, media_type="application/json")
+        if request.query_params.get("tenant_id", identity.tenant) != identity.tenant:
+            return Response(content='{"detail":"tenant mismatch"}', status_code=403, media_type="application/json")
+        payload = {}
+        if "application/json" in request.headers.get("content-type", ""):
+            try:
+                payload = await request.json()
+            except ValueError:
+                payload = {}
+            if isinstance(payload, dict) and payload.get("tenant_id", identity.tenant) != identity.tenant:
+                return Response(content='{"detail":"tenant mismatch"}', status_code=403, media_type="application/json")
+        # Legacy control-plane routes are operator-only. Users use the authorization-aware beta API.
+        if not identity.admin and not request.url.path.startswith("/api/v1/beta/"):
+            return Response(content='{"detail":"operator role required for legacy routes"}', status_code=403, media_type="application/json")
+        if identity.tenant != settings.default_tenant and not request.url.path.startswith("/api/v1/beta/"):
+            # Legacy models default to the configured demo tenant. Never let an
+            # omitted tenant silently access that tenant under another identity.
+            explicit_tenant = request.query_params.get("tenant_id")
+            if isinstance(payload, dict) and request.method in {"POST", "PUT", "PATCH"} and "application/json" in request.headers.get("content-type", ""):
+                explicit_tenant = payload.get("tenant_id")
+            if explicit_tenant != identity.tenant:
+                return Response(content='{"detail":"explicit tenant_id required on legacy routes"}', status_code=403, media_type="application/json")
+        resource_ids = [part for part in request.url.path.split("/") if re.fullmatch(r"[0-9a-fA-F-]{36}", part)]
+        for values in (request.query_params, payload if isinstance(payload, dict) else {}):
+            resource_ids.extend(str(value) for key, value in values.items() if key.endswith("_id") and re.fullmatch(r"[0-9a-fA-F-]{36}", str(value)))
+        for resource_id in resource_ids:
+            for table in ("storage_systems", "catalogue_groups", "enterprise_pipelines", "enterprise_indexes", "datasets", "jobs"):
+                owner = db.fetchone(f"SELECT tenant_id FROM {table} WHERE id=?", (resource_id,))
+                if owner and owner["tenant_id"] != identity.tenant:
+                    return Response(content='{"detail":"resource belongs to another tenant"}', status_code=403, media_type="application/json")
+            owner = db.fetchone("SELECT g.tenant_id FROM catalogue_objects o JOIN catalogue_groups g ON g.id=o.catalogue_group_id WHERE o.id=?", (resource_id,))
+            if owner and owner["tenant_id"] != identity.tenant:
+                return Response(content='{"detail":"resource belongs to another tenant"}', status_code=403, media_type="application/json")
+        token = current_identity.set(identity)
+    try:
+        resp = await call_next(request)
+    finally:
+        if token is not None:
+            current_identity.reset(token)
     resp.headers["x-request-id"] = rid
     resp.headers["x-content-type-options"] = "nosniff"
     resp.headers["referrer-policy"] = "same-origin"
@@ -54,6 +97,8 @@ async def request_context(request: Request, call_next):
 def startup():
     db.init_schema()
     enterprise.init_schema()
+    workbench.init_schema()
+    archive.init_schema()
     if settings.demo_mode:
         seed_demo()
 
@@ -596,14 +641,14 @@ def ingest_hcp_mqe(body: AdapterPayloadIn):
 # ----- Search/AI is independent of the catalogue -----
 @app.get("/api/v1/search")
 def search(q: str, tenant_id: str = settings.default_tenant, limit: int = 20):
-    return processing.search(tenant_id, q, limit)
+    return workbench.search(current_identity.get(), q, limit=limit)["results"]
 
 
 @app.post("/api/v1/ai/retrieve")
 def retrieve(body: RetrieveIn):
     return {
         "query": body.query,
-        "results": processing.search(body.tenant_id, body.query, body.top_k, body.dataset_id),
+        "results": workbench.search(current_identity.get(), body.query, limit=body.top_k)["results"],
         "retrieval": "hybrid-local-beta",
         "catalogue_dependency": False,
         "note": "Production HOP writes to Solr/vector indexes directly from storage; AMP Catalogue is used later for reconciliation.",
@@ -697,7 +742,7 @@ def create_index(body: IndexIn):
 
 @app.post("/api/v1/search/federated")
 def federated_search(body: RoutedSearchIn):
-    return enterprise.routed_search(body.tenant_id, body.query, processing, body.index_ids, max(1, min(body.limit, 100)))
+    return workbench.search(current_identity.get(), body.query, limit=max(1, min(body.limit, 100)), index_ids=body.index_ids)
 
 
 @app.get("/api/v1/analytics/overview")
@@ -780,3 +825,6 @@ def seed_demo():
     ops.discover(settings.default_tenant, lg["id"])
     processing.index_source(lg["id"])
     enterprise.seed_defaults(settings.default_tenant, [pg["id"], lg["id"]])
+
+
+archive, workbench = install(app, db, catalog, processing, enterprise, settings)

@@ -1,3 +1,11 @@
+# HCP-focused beta 0.11.0-beta.2
+
+The immediate demonstration scope is HCP collection, extraction, metadata transformation, indexing and search. Start with the [HCP demo runbook](../releases/BETA_0_11_0_HCP_DEMO.md). Native REST and the synthetic source are explicitly distinguished; non-HCP expansion and incomplete enterprise acceptance remain deferred.
+
+# Beta 0.11 delivery status
+
+The authoritative issue-by-issue beta matrix is [BETA_0_11_0.md](../releases/BETA_0_11_0.md). It covers #1–#27 and distinguishes local working slices from plans, external integration adapters and retired work. The preceding baseline is preserved below; it does not override that matrix.
+
 # AMP Feature Tracker
 
 Active umbrella issue: [AMP-CORE-EPIC-001 — #25](https://github.com/hitendrakumartalluri-cpu/DataAmp/issues/25)
@@ -9,8 +17,8 @@ Active umbrella issue: [AMP-CORE-EPIC-001 — #25](https://github.com/hitendraku
 | AMP-CON-001 | Canonical connector capability contract | Next | Approved |
 | AMP-CON-002 | AWS S3 inventory, events, metadata and governance adapter | Next | Partial scaffold |
 | AMP-CON-003 | HCP MQE, object, metadata and governance adapter | Next | Partial scaffold |
-| AMP-CON-004 | Azure Blob inventory, change feed, metadata and governance adapter | Later | Planned |
-| AMP-CON-005 | VSP One Object connector | Later | Planned |
+| AMP-CON-004 | Azure Blob inventory, change feed, metadata and governance adapter | Beta | Read adapter; change feed/governance pending |
+| AMP-CON-005 | VSP One Object connector | Beta | S3-compatible read adapter |
 | AMP-IDX-001 | Full-text extraction through Hop and Tika | Next | Beta simulator |
 | AMP-IDX-002 | Native metadata and tag normalization | Next | Planned |
 | AMP-IDX-003 | Durable indexing ledger and retry state | Next | Approved design |

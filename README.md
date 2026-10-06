@@ -1,13 +1,30 @@
+# HCP-focused beta 0.11.0-beta.2
+
+The immediate demonstration scope is HCP collection, extraction, metadata transformation, indexing and search. Start with the [HCP demo runbook](docs/releases/BETA_0_11_0_HCP_DEMO.md). Native REST and the synthetic source are explicitly distinguished; non-HCP expansion and incomplete enterprise acceptance remain deferred.
+
 # DataAmp — Archive Modernization Platform
 
-AMP is an enterprise indexing, search, analytics and governance-assurance platform for existing object storage.
+AMP is an archiving, indexing, search, analytics and governance-assurance platform. The 0.11 beta adds managed document ingestion, metadata mapping and verified archive receipts alongside existing storage discovery.
 
-AMP connects to AWS S3, Azure Blob Storage, Hitachi Content Platform (HCP) and VSP One Object. It inventories objects, extracts full text, indexes native metadata and tags, provides federated search across heterogeneous Solr indexes, and drives explainable retention and hold workflows through native storage APIs.
+AMP has connector adapters for AWS S3, Azure Blob Storage, HCP and VSP One Object. The runnable beta uses local search projections; external connector, Solr, Hop and native governance qualification is explicitly tracked in the release notes.
 
 AMP is **not** a storage gateway and does not replace the client-facing S3, Azure or HCP APIs.
 
+## Beta 0.11
+
+- [Release notes and all 27 issue coverage](docs/releases/BETA_0_11_0.md)
+- [Archive ingestion decision](docs/adr/ADR-0012-managed-archive-ingestion.md)
+- [Example ingestion batch](examples/archive/)
+
+```bash
+./scripts/run-beta.sh
+```
+
+Open http://localhost:8080. The local script uses SQLite and persists documents and receipts under `data/`. Demo mode is for local evaluation. See the release notes for identity configuration and production qualification limits.
+
 ## Active product planes
 
+- Managed archive ingestion, mapping, payload/metadata verification and independent index state.
 - Storage connectors and continuous change capture.
 - Full-text, metadata and tag indexing through Apache Hop, Tika and Solr.
 - Source-to-index reconciliation and repair evidence.
@@ -33,7 +50,7 @@ AMP is **not** a storage gateway and does not replace the client-facing S3, Azur
 docker compose up --build
 ```
 
-Open `http://localhost:8080` for the enterprise console or `http://localhost:8080/docs` for the API. Demo mode seeds two local storage scopes, a processing pipeline, a Solr-compatible index, a PII rule and a dry-run hold policy.
+Open `http://localhost:8080` for the enterprise console or `http://localhost:8080/docs` for the API. Demo mode also seeds an archive profile and invoice. Compose uses PostgreSQL; the local script is the locally tested SQLite path.
 
 ## Repository boundaries
 

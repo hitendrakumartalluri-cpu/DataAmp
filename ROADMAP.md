@@ -1,3 +1,11 @@
+# HCP-focused beta 0.11.0-beta.2
+
+The immediate demonstration scope is HCP collection, extraction, metadata transformation, indexing and search. Start with the [HCP demo runbook](docs/releases/BETA_0_11_0_HCP_DEMO.md). Native REST and the synthetic source are explicitly distinguished; non-HCP expansion and incomplete enterprise acceptance remain deferred.
+
+# 0.11 beta update
+
+Managed archiving is now part of the product under ADR-0012. The [0.11 release matrix](docs/releases/BETA_0_11_0.md) is the current issue-by-issue delivery status. Prior planning below remains historical context where it conflicts with this matrix. Next gates: PostgreSQL/live endpoint qualification, application metadata enrichment, scheduler and resumable ingestion, external Solr routing, native policy executors and specialist connectors.
+
 # AMP Roadmap
 
 ## Phase 1 — Connector and index assurance foundation

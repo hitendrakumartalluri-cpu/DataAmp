@@ -9,3 +9,8 @@ data/primary/*
 data/legacy/*
 !data/primary/.gitkeep
 !data/legacy/.gitkeep
+
+.venv/
+data/
+*.db-shm
+*.db-wal
