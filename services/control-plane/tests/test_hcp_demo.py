@@ -43,6 +43,10 @@ def test_hcp_rest_is_not_s3_and_reads_pinned_annotations(hcp_flow):
     assert preview['transformed_metadata']['business_date']=='2025-10-04T00:00:00+00:00'
     assert 'payment dispute' in preview['text_preview']
     assert any('annotation=business' in url and 'version=1001' in url for _,url in requests)
+    docx = service.preview('test',flow['id'],'contracts/employment.docx')
+    assert docx['extraction']['extractor']=='python-docx'
+    assert '\x00' not in docx['text_preview']
+    assert docx['text_preview']
     assert all(method in {'GET','HEAD'} for method,_ in requests)
     backend=backend_from_record(service.catalog.backend_record_for_group(flow['group_id']))
     assert isinstance(backend,HCPRestStorage)

@@ -79,7 +79,7 @@ jobs:
       - run: pip install -r services/control-plane/requirements-test.txt
       - name: Start real SolrCloud demo engine
         run: |
-          docker run -d --name amp-solr-ci -p 8983:8983 solr:10.0.0 solr-foreground -c
+          docker run -d --name amp-solr-ci -p 8983:8983 solr:10.0.0 solr-foreground
           for attempt in $(seq 1 60); do
             if curl -fsS 'http://localhost:8983/solr/admin/collections?action=LIST&wt=json'; then exit 0; fi
             sleep 2

@@ -60,7 +60,7 @@ class ProcessingService:
                 return json.dumps(json.loads(data.decode("utf-8", errors="ignore")), indent=2), {"extractor": "builtin-json"}
             except Exception:
                 pass
-        if "xml" in ct or suffix in {".xml", ".html", ".htm"}:
+        if ct in {"application/xml", "text/xml", "text/html", "application/xhtml+xml"} or ct.endswith("+xml") or suffix in {".xml", ".html", ".htm"}:
             text = re.sub(r"<[^>]+>", " ", data.decode("utf-8", errors="ignore"))
             return re.sub(r"\s+", " ", text).strip(), {"extractor": "builtin-markup"}
         if "pdf" in ct or suffix == ".pdf":
