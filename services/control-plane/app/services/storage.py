@@ -276,6 +276,9 @@ def _guess_content_type(key: str) -> str:
 def backend_from_record(rec: dict) -> StorageBackend:
     kind = rec["kind"].upper()
     if kind == "LOCAL": return LocalFilesystemStorage(rec.get("root_path") or rec.get("endpoint") or ".")
-    if kind in {"S3", "AWS_S3", "MINIO", "HCP", "HCP_S3", "VSP_ONE_OBJECT"}: return S3Storage(rec)
+    if kind in {"HCP", "HCP_REST"}:
+        from .hcp import HCPRestStorage
+        return HCPRestStorage(rec)
+    if kind in {"S3", "AWS_S3", "MINIO", "HCP_S3", "VSP_ONE_OBJECT"}: return S3Storage(rec)
     if kind in {"AZURE", "AZURE_BLOB"}: return AzureBlobStorage(rec)
     raise ValueError(f"Unsupported storage kind: {kind}")

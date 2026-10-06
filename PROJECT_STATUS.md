@@ -1,3 +1,7 @@
+# HCP-focused beta 0.11.0-beta.2
+
+The immediate demonstration scope is HCP collection, extraction, metadata transformation, indexing and search. Start with the [HCP demo runbook](docs/releases/BETA_0_11_0_HCP_DEMO.md). Native REST and the synthetic source are explicitly distinguished; non-HCP expansion and incomplete enterprise acceptance remain deferred.
+
 # Project Status
 
 ## Current direction

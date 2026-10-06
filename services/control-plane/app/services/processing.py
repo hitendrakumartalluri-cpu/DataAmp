@@ -92,12 +92,13 @@ class ProcessingService:
         norm = math.sqrt(sum(v * v for v in vec)) or 1.0
         return [round(v / norm, 6) for v in vec]
 
-    def index_source(self, group_id: str, prefix: str = "", limit: int = 100_000) -> dict:
+    def index_source(self, group_id: str, prefix: str = "", limit: int = 100_000, mapping: dict | None = None, solr_pair=None) -> dict:
         """Simulate connector -> extraction -> search projection without catalogue reads."""
         group = self.catalog.get_catalogue_group(group_id)
         backend = backend_from_record(self.catalog.backend_record_for_group(group_id))
         processed = indexed = 0
         errors: list[dict[str, str]] = []
+        mapping = mapping or {}
         native_items = backend.list(prefix)
         work = ((item.key, item.key, item.version_id or "", item.content_type) for item in native_items if not item.key.startswith((".amp/", "amp-archive/")))
 
@@ -113,16 +114,31 @@ class ProcessingService:
                 if not stat:
                     raise FileNotFoundError(payload_key)
                 recon_id = self.catalog.recon_id_for(group, logical_key, version_id or stat.version_id or "")
-                data = backend.get(payload_key)
+                data = backend.get(payload_key, stat.version_id or version_id)
                 after = backend.head(payload_key)
                 if not after or (stat.version_id and after.version_id != stat.version_id) or (stat.etag and after.etag != stat.etag):
                     raise ValueError("source changed during extraction")
+                native_metadata = backend.metadata(payload_key, stat) if hasattr(backend, "metadata") else (stat.backend.raw or {}).get("Metadata", {})
+                if mapping:
+                    from ..beta.archive import ArchiveService
+                    native_metadata = ArchiveService.enrich(None, native_metadata, {"config": {"mapping": mapping}})
+                final_stat = backend.head(payload_key)
+                if not final_stat or (stat.version_id and final_stat.version_id != stat.version_id) or final_stat.etag != stat.etag or final_stat.backend.headers.get("x-hcp-changetimemilliseconds") != stat.backend.headers.get("x-hcp-changetimemilliseconds"):
+                    raise ValueError("source metadata changed during collection")
+                for field,rule in mapping.items():
+                    if rule.get('type')=='date' and field in native_metadata:
+                        from datetime import datetime
+                        native_metadata[field+'_millis'] = int(datetime.fromisoformat(native_metadata[field]).timestamp()*1000)
                 content_hash = hashlib.sha256(data).hexdigest()
                 text, meta = self.extract_text(data[:settings.max_extract_bytes], content_type or stat.content_type, logical_key)
-                self.db.execute(
-                    "DELETE FROM search_documents WHERE source_id=? AND container_type=? AND container_name=? AND recon_id=?",
-                    (group["storage_id"], group["container_type"], group["container_name"], recon_id),
-                )
+                previous = self.db.fetchall("SELECT DISTINCT recon_id FROM search_documents WHERE source_id=? AND container_type=? AND container_name=? AND object_key=?", (group["storage_id"], group["container_type"], group["container_name"], logical_key))
+                self.db.execute("DELETE FROM search_documents WHERE source_id=? AND container_type=? AND container_name=? AND object_key=?", (group["storage_id"], group["container_type"], group["container_name"], logical_key))
+                if self.workbench:
+                    for old in previous:
+                        if old["recon_id"] != recon_id:
+                            self.db.execute("DELETE FROM document_projection WHERE tenant_id=? AND source_id=? AND recon_id=?", (group["tenant_id"], group["storage_id"], old["recon_id"]))
+                            self.db.execute("DELETE FROM beta_index_state WHERE tenant_id=? AND source_id=? AND recon_id=?", (group["tenant_id"], group["storage_id"], old["recon_id"]))
+
                 chunks = 0
                 for seq, start in enumerate(range(0, max(1, len(text)), settings.chunk_chars)):
                     chunk = text[start:start + settings.chunk_chars].strip()
@@ -140,9 +156,12 @@ class ProcessingService:
                 if self.workbench:
                     fields = {"object_key": logical_key, "source_id": group["storage_id"], "container_name": group["container_name"],
                         "content_type": content_type or stat.content_type, "size_bytes": stat.size, "content_sha256": content_hash,
-                        "source_version": stat.version_id, "indexed_at": now(), "extraction": meta}
-                    fields.update((stat.backend.raw or {}).get("Metadata", {}))
+                        "source_version": stat.version_id, "indexed_at": now(), "extraction": meta, "source_group_id": group_id, "pipeline_mapping": mapping}
+                    fields.update(native_metadata)
                     self.workbench.project(group["tenant_id"], group["storage_id"], recon_id, fields)
+                    if solr_pair:
+                        from ..beta.solr import SolrPair
+                        SolrPair(solr_pair).upsert(group["tenant_id"], group["storage_id"], recon_id, logical_key, fields, text)
                 self._upsert_ai_artifact(group, recon_id, content_hash, "EMBEDDING_SET", chunks)
                 if self.workbench:
                     self.workbench.ledger.record(group["tenant_id"], group["storage_id"], recon_id, version_id or stat.version_id or "", content_hash, "LOCAL_SEARCH_VISIBLE")
@@ -152,7 +171,7 @@ class ProcessingService:
                     self.workbench.ledger.record(group["tenant_id"], group["storage_id"], recon_id, version_id, "", "FAILED_RETRYABLE", str(exc))
                 errors.append({"key": logical_key, "error": str(exc)})
         return {"processed": processed, "indexed": indexed, "errors": errors,
-                "pipeline": self.PIPELINE_VERSION, "catalogue_dependency": False}
+                "pipeline": self.PIPELINE_VERSION, "catalogue_dependency": False, "engine": "SOLR" if solr_pair else "LOCAL_BETA"}
 
     def _upsert_ai_artifact(self, group: dict, recon_id: str, content_hash: str, artifact_type: str, chunks: int):
         existing = self.db.fetchone(

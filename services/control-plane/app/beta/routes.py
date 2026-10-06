@@ -19,6 +19,10 @@ def install(app, db, catalog, processing, enterprise, settings):
     archive = ArchiveService(db, catalog, processing, settings.data_root)
     workbench = WorkbenchService(db, catalog, processing, settings.data_root)
     archive.workbench, workbench.archive = workbench, archive
+    from .hcp_demo import HCPDemoService, FEATURES
+    hcp = HCPDemoService(db, catalog, processing, workbench, archive, enterprise)
+    hcp.init_schema()
+    app.state.hcp = hcp
     processing.workbench = workbench
     app.state.archive, app.state.workbench = archive, workbench
     router = APIRouter(prefix="/api/v1/beta")
@@ -53,6 +57,73 @@ def install(app, db, catalog, processing, enterprise, settings):
                 raise HTTPException(422, str(exc))
         return call
 
+    @router.get("/hcp/workflows")
+    @translate
+    def hcp_workflows():
+        return hcp.workflows(admin().tenant)
+
+    @router.post("/hcp/workflows")
+    @translate
+    def hcp_create(body: dict):
+        return hcp.create(admin().tenant, body)
+
+    @router.post("/hcp/demo/setup")
+    @translate
+    def hcp_setup():
+        return hcp.setup_demo(admin().tenant)
+
+    @router.get("/hcp/features")
+    def hcp_features():
+        return [{"issue":i,"name":n,"mode":m,"action":a} for i,n,m,a in FEATURES]
+
+    @router.post("/hcp/workflows/{wid}/preview")
+    @translate
+    def hcp_preview(wid: str, body: dict):
+        return hcp.preview(admin().tenant,wid,body["key"])
+
+    @router.post("/hcp/workflows/{wid}/run", status_code=202)
+    @translate
+    def hcp_enqueue(wid: str):
+        return hcp.enqueue(admin().tenant,wid)
+
+    @router.get("/hcp/runs")
+    def hcp_runs():
+        who=admin()
+        return [hcp.run(who.tenant,row["id"]) for row in db.fetchall("SELECT id FROM hcp_runs WHERE tenant_id=? ORDER BY created_at DESC LIMIT 20",(who.tenant,))]
+
+    @router.post("/hcp/runs/{rid}/execute")
+    @translate
+    def hcp_execute(rid: str):
+        return hcp.execute(admin().tenant,rid)
+
+    @router.post("/hcp/workflows/{wid}/feature/{action}")
+    @translate
+    def hcp_feature(wid: str, action: str):
+        return hcp.feature(admin(),wid,action)
+
+    @router.post("/hcp/workflows/{wid}/solr")
+    @translate
+    def hcp_solr(wid: str, body: dict):
+        from .solr import SolrPair
+        who=admin();workflow=hcp.workflow(who.tenant,wid)
+        pair=SolrPair(body);result=pair.provision(int(body.get("shards",1)))
+        workflow["config"]["solr_pair"]=body
+        db.execute("UPDATE hcp_workflows SET config_json=? WHERE id=?",(db.dumps(workflow["config"]),wid))
+        return result
+
+    @router.post("/hcp/workflows/{wid}/search")
+    @translate
+    def hcp_search(wid: str, body: dict):
+        from .solr import SolrPair
+        who=identity();workflow=hcp.workflow(who.tenant,wid)
+        authorized=workbench.search(who,"",[{"field":"source_group_id","value":workflow["group_id"]}],1000)["results"]
+        pair=workflow["config"].get("solr_pair")
+        if pair:
+            result=SolrPair(pair).search(who.tenant,body.get("query",""),authorized,body.get("filters"))
+            catalog.audit(who.tenant,"HCP_SOLR_SEARCH",actor=who.actor,details={"hits":result["total"]})
+            return result
+        return workbench.search(who,body.get("query",""),[{"field":"source_group_id","value":workflow["group_id"]}]+body.get("filters",[]),int(body.get("limit",100)))
+
     @router.get("/identity")
     def whoami():
         who = identity()
@@ -66,7 +137,7 @@ def install(app, db, catalog, processing, enterprise, settings):
                 "sftp": "REQUIRES_ENDPOINT_VALIDATION", "mount": "LOCAL_CONTRACT_TESTED"},
             "hop": "EXTERNAL_RUNNER_REQUIRES_QUALIFICATION", "native_governance": "PLAN_ONLY",
             "ai": "DETERMINISTIC_ASSISTANTS", "export": "ASYNC_LOCAL_BOUNDED",
-            "schema_and_rollover": "REGISTRY_AND_PLAN_ONLY", "identity": "SERVER_CONFIGURED_TOKENS"}
+            "schema_and_rollover": "REGISTRY_AND_PLAN_ONLY", "hcp_native_rest": "CONTRACT_TESTED_REQUIRES_VM", "hcp_demo": "SIMULATOR_AVAILABLE", "solr_split": "OPTIONAL_NATIVE_PAIR", "identity": "SERVER_CONFIGURED_TOKENS"}
 
     @router.get("/archive/profiles")
     @translate
@@ -310,6 +381,7 @@ def install(app, db, catalog, processing, enterprise, settings):
         return db.fetchall("SELECT * FROM beta_dashboards WHERE tenant_id=?", (identity().tenant,))
 
     def tick():
+        hcp.tick()
         archive.tick()
         for row in db.fetchall("SELECT * FROM beta_jobs WHERE status='QUEUED' ORDER BY created_at LIMIT 10"):
             snap = db.loads(row["request_json"], {})["identity"]
@@ -331,6 +403,7 @@ def install(app, db, catalog, processing, enterprise, settings):
         enterprise.init_schema()
         archive.init_schema()
         workbench.init_schema()
+        hcp.init_schema()
         workbench.bootstrap_projections(settings.default_tenant)
         if settings.demo_mode and not archive.profiles(settings.default_tenant):
             group = db.fetchone("SELECT id FROM catalogue_groups WHERE tenant_id=? ORDER BY created_at LIMIT 1", (settings.default_tenant,))

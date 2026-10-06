@@ -205,18 +205,35 @@ class WorkbenchService:
             "assumption": "Index/source size ratio is supplied, not measured; load tests required before production provisioning."}
 
     def query_plan(self, identity, text):
-        # Transparent deterministic assistant; no LLM or raw Solr execution claim.
-        known = {key for doc in self.documents(identity) for key in doc["fields"]}
+        # Supported English templates and explicit field=value syntax; no LLM.
+        documents = self.documents(identity)
+        known = {key for doc in documents for key in doc["fields"]}
         filters, remaining = [], text
-        for match in list(re.finditer(r'([\w_]+)\s*=\s*("[^"]+"|[\w.-]+)', text)):
+        explicit = list(re.finditer(r'([\w_]+)\s*=\s*("[^"]+"|[\w.-]+)', text))
+        for match in explicit:
             field, value = match.group(1), match.group(2).strip('"')
             if field not in known:
                 raise ValueError("unknown field: " + field)
             filters.append({"field": field, "op": "eq", "value": value})
             remaining = remaining.replace(match.group(0), "")
-        return {"mode": "DETERMINISTIC_ASSISTANT", "query": remaining.strip(), "filters": filters,
-            "requires_confirmation": True, "estimated_scope": len(self.documents(identity)),
-            "explanation": "Use field=value for metadata; remaining words are an AND full-text query. No arbitrary Solr syntax is executed."}
+        if not explicit:
+            for field in ("customer_name", "record_type", "jurisdiction", "department"):
+                values = {str(d["fields"][field]) for d in documents if field in d["fields"]}
+                matched = [value for value in values if re.search(r'\b' + re.escape(value) + r's?\b', text, re.I)]
+                if len(matched) > 1:
+                    raise ValueError("ambiguous " + field + ": narrow the request")
+                if matched:
+                    filters.append({"field":field,"op":"eq","value":matched[0]})
+            year = re.search(r'\b(?:from|in|during)\s+(20\d{2})\b', text, re.I)
+            selected_year = int(year.group(1)) if year else datetime.now(timezone.utc).year-1 if re.search(r'\blast year\b', text, re.I) else None
+            if selected_year and "business_date" in known:
+                filters.extend([{"field":"business_date","op":"gte","value":f"{selected_year}-01-01T00:00:00+00:00"},
+                    {"field":"business_date","op":"lte","value":f"{selected_year}-12-31T23:59:59.999999+00:00"}])
+            about = re.search(r'\b(?:about|containing)\s+(.+)$', text, re.I)
+            remaining = about.group(1).strip() if about else "" if filters else text
+        return {"mode": "DETERMINISTIC_TEMPLATE_ASSISTANT", "query": remaining.strip(), "filters": filters,
+            "requires_confirmation": True, "estimated_scope": len(documents),
+            "explanation": "Supported grammar: Find [known customer] [record type] in [jurisdiction] from [year/last year] about [content words], or field=value. Review the plan before execution. No arbitrary Solr syntax or model inference."}
 
     def new_job(self, identity, kind, request):
         if kind not in {"EXPORT", "EVIDENCE", "CLASSIFY", "PII", "BULK_PLAN", "HOP_RUN"}:
@@ -299,11 +316,21 @@ class WorkbenchService:
                 archive.writestr("archive-receipts.json", self.db.dumps(receipts))
             if request.get("include_documents"):
                 for doc in docs:
-                    if doc["fields"].get("archive_id") != doc["recon_id"]:
-                        raise ValueError("document export currently supports verified AMP archives; source downloads use connector retrieval")
                     target = self.root / (jid + "-" + doc["recon_id"])
                     try:
-                        self.archive.download(identity.tenant, doc["recon_id"], target)
+                        if doc["fields"].get("archive_id") == doc["recon_id"]:
+                            self.archive.download(identity.tenant, doc["recon_id"], target)
+                        else:
+                            from ..services.storage import backend_from_record
+                            group = self.catalog.get_catalogue_group(doc["fields"]["source_group_id"])
+                            if group["tenant_id"] != identity.tenant or group["storage_id"] != doc["source_id"]:
+                                raise PermissionError("source ownership mismatch")
+                            backend = backend_from_record(self.catalog.backend_record_for_group(group["id"]))
+                            data,stat = backend.get_with_stat(doc["name"],doc["source_version"])
+                            if hashlib.sha256(data).hexdigest() != doc["fields"]["content_sha256"]:
+                                raise ValueError("source document changed since indexing")
+                            target.write_bytes(data)
+                            self.catalog.audit(identity.tenant,"SOURCE_EXPORT_READ",actor=identity.actor,recon_id=doc["recon_id"],details={"version":doc["source_version"]})
                         archive.write(target, "documents/" + doc["recon_id"] + "/" + Path(doc["name"]).name)
                     finally:
                         target.unlink(missing_ok=True)

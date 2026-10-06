@@ -1,3 +1,7 @@
+# HCP-focused beta 0.11.0-beta.2
+
+The immediate demonstration scope is HCP collection, extraction, metadata transformation, indexing and search. Start with the [HCP demo runbook](../releases/BETA_0_11_0_HCP_DEMO.md). Native REST and the synthetic source are explicitly distinguished; non-HCP expansion and incomplete enterprise acceptance remain deferred.
+
 # Beta 0.11 delivery status
 
 The authoritative issue-by-issue beta matrix is [BETA_0_11_0.md](../releases/BETA_0_11_0.md). It covers #1–#27 and distinguishes local working slices from plans, external integration adapters and retired work. The preceding baseline is preserved below; it does not override that matrix.

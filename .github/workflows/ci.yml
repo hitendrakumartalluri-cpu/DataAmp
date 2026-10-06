@@ -42,6 +42,7 @@ jobs:
         run: |
           node --check services/control-plane/app/static/app.js
           node --check services/control-plane/app/static/beta.js
+          node --check services/control-plane/app/static/hcp.js
 
   postgres-archive-contract:
     runs-on: ubuntu-latest
@@ -66,4 +67,30 @@ jobs:
         env:
           AMP_TEST_POSTGRES_URL: postgresql://amp:amp_ci_password@localhost:5432/amp
           PYTHONPATH: services/control-plane
-        run: python -m pytest -q services/control-plane/tests/test_archive_beta.py
+        run: python -m pytest -q services/control-plane/tests/test_archive_beta.py services/control-plane/tests/test_hcp_demo.py
+
+  solr-hcp-demo-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install -r services/control-plane/requirements-test.txt
+      - name: Start real SolrCloud demo engine
+        run: |
+          docker run -d --name amp-solr-ci -p 8983:8983 solr:10.0.0 solr-foreground -c
+          for attempt in $(seq 1 60); do
+            if curl -fsS 'http://localhost:8983/solr/admin/collections?action=LIST&wt=json'; then exit 0; fi
+            sleep 2
+          done
+          docker logs amp-solr-ci
+          exit 1
+      - name: HCP REST and physical Solr metadata/text contracts
+        env:
+          PYTHONPATH: services/control-plane
+          AMP_TEST_SOLR_URL: http://localhost:8983/solr
+        run: python -m pytest -q services/control-plane/tests/test_hcp_demo.py
+      - name: Solr diagnostic logs
+        if: failure()
+        run: docker logs amp-solr-ci

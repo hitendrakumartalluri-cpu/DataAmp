@@ -8,4 +8,5 @@ PYTHONPATH=services/control-plane "$python_bin" -m pytest -q services/control-pl
 "$python_bin" -m compileall -q services/control-plane/app
 node --check services/control-plane/app/static/app.js
 node --check services/control-plane/app/static/beta.js
+node --check services/control-plane/app/static/hcp.js
 while IFS= read -r -d '' script; do bash -n "$script"; done < <(find scripts lab/scripts -name '*.sh' -print0)
